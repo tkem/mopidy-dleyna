@@ -3,8 +3,9 @@ from __future__ import unicode_literals
 import logging
 import os
 
-from mopidy import config, ext
+from mopidy import config, exceptions, ext
 
+from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
 
 __version__ = '0.1.0'
 
@@ -28,3 +29,16 @@ class Extension(ext.Extension):
     def setup(self, registry):
         from .backend import dLeynaBackend
         registry.add('backend', dLeynaBackend)
+
+    def validate_environment(self):
+        try:
+            import dbus
+        except ImportError as e:
+            raise exceptions.ExtensionError('dbus library not found', e)
+        try:
+            bus = dbus.SessionBus()
+            obj = bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH)
+            mgr = dbus.Interface(obj, MANAGER_IFACE)
+            logger.info('Running dleyna-server %s', mgr.GetVersion())
+        except Exception as e:
+            raise exceptions.ExtensionError('dleyna-server not found', e)

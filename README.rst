@@ -2,32 +2,40 @@ Mopidy-dLeyna
 ========================================================================
 
 Mopidy-dLeyna is a Mopidy_ extension that lets you play music from
-Digital Media Servers.
+DLNA_ Digital Media Servers using the dLeyna_ D-Bus interface.
 
-This project is in a *very* early prototyping, so you better stay away
-from it for now...
+
+Dependencies
+------------------------------------------------------------------------
+
+- D-Bus Python bindings, such as the package ``python-dbus`` in
+  Ubuntu/Debian.
+
+- The ``dleyna-server`` package available in Ubuntu 14.04 and Debian
+  "jessie".  For other platforms, please see the dLeyna `installation
+  instructions <https://github.com/01org/dleyna-server>`.
 
 
 Installation
-============
+------------------------------------------------------------------------
 
-Mopidy-Local-dLeyna can be installed using pip_ by running::
+Mopidy-dLeyna can be installed using pip_ by running::
 
-    pip install Mopidy-Local-dLeyna
+  pip install Mopidy-dLeyna
 
 
 Configuration
-=============
+------------------------------------------------------------------------
 
-Before starting Mopidy, you must add configuration for Mopidy-dLeyna
-to your Mopidy configuration file::
+Note that configuration settings for this extension are still subject
+to change::
 
-    [dleyna]
-    # TODO: Add example of extension config
+  [dleyna]
+  enabled = true
 
 
 Project resources
-=================
+------------------------------------------------------------------------
 
 .. image:: https://img.shields.io/pypi/v/Mopidy-dLeyna.svg?style=flat
     :target: https://pypi.python.org/pypi/Mopidy-dLeyna/
@@ -61,10 +69,18 @@ Licensed under the `Apache License, Version 2.0`_.
 Known Bugs and Limitations
 ------------------------------------------------------------------------
 
-TBD.
+Currently, only the browse interface is implemented, so searching will
+return no results from Digital Media Servers.
+
+Browsing through this extension may crash at least some versions of
+minidlna_ (a.k.a ReadyMedia, the NAS daemon provided with many NETGEAR
+routers).  The reasons for this, and possible workarounds, remain to
+be investigated.
 
 
 .. _Mopidy: http://www.mopidy.com/
+.. _DLNA: http://www.dlna.org/
+.. _dLeyna: http://01.org/dleyna
 
 .. _pip: https://pip.pypa.io/en/latest/
 
@@ -73,3 +89,6 @@ TBD.
 .. _Change Log: https://github.com/tkem/mopidy-dleyna/blob/master/CHANGES.rst
 
 .. _Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+
+
+.. _minidlna: http://sourceforge.net/projects/minidlna/
