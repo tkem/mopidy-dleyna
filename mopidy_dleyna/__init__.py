@@ -7,7 +7,7 @@ from mopidy import config, exceptions, ext
 
 from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 logger = logging.getLogger(__name__)
 
