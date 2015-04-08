@@ -72,11 +72,6 @@ Known Bugs and Limitations
 Currently, only the browse interface is implemented, so searching will
 return no results from Digital Media Servers.
 
-Browsing through this extension may crash at least some versions of
-minidlna_ (a.k.a ReadyMedia, the NAS daemon provided with many NETGEAR
-routers).  The reasons for this, and possible workarounds, remain to
-be investigated.
-
 
 .. _Mopidy: http://www.mopidy.com/
 .. _DLNA: http://www.dlna.org/

@@ -12,7 +12,7 @@ from .dleyna import SERVER_BUS_NAME, SERVER_ROOT_PATH
 
 logger = logging.getLogger(__name__)
 
-_BROWSE_FILTER = ['DisplayName', 'Path', 'Type']
+_BROWSE_FILTER = ['*']
 
 
 def _item_to_track(props):
@@ -55,20 +55,17 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                     refs.append(Ref.track(name=name, uri=uri))
         else:
             manager = self.__get_object(SERVER_ROOT_PATH, MANAGER_IFACE)
-            for path in manager.GetServers():
-                props = self.__get_object(path, dbus.PROPERTIES_IFACE)
-                try:
-                    name = props.Get('', 'FriendlyName')
-                except Exception:
-                    name = props.Get('', 'DisplayName')
-                refs.append(Ref.directory(name=name, uri='dleyna:'+path))
+            for obj in map(self.__get_properties, manager.GetServers()):
+                name = obj.get('FriendlyName', obj.get('DisplayName'))
+                uri = 'dleyna:' + obj['Path']
+                refs.append(Ref.directory(name=name, uri=uri))
         return refs
 
     def lookup(self, uri):
         _, _, path = uri.partition(':')
-        props = self.__get_object(path, dbus.PROPERTIES_IFACE)
-        if props.Get('', 'Type') == 'music':
-            return [_item_to_track(props.GetAll(''))]
+        props = self.__get_properties(path)
+        if props.get('Type') == 'music':
+            return [_item_to_track(props)]
         else:
             return []  # TODO: lookup containers, etc.
 
@@ -81,3 +78,6 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             return dbus.Interface(obj, iface)
         else:
             return obj
+
+    def __get_properties(self, path):
+        return self.__get_object(path, dbus.PROPERTIES_IFACE).GetAll('')
