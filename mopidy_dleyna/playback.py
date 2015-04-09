@@ -1,10 +1,11 @@
-from __future__ import unicode_literals
+from __future__ import absolute_import, unicode_literals
 
 import dbus
 
 from mopidy import backend
 
-from .dleyna import MEDIA_ITEM_IFACE, SERVER_BUS_NAME
+from .dleyna import SERVER_BUS_NAME
+from .gupnp import MEDIA_ITEM_IFACE
 
 
 class dLeynaPlaybackProvider(backend.PlaybackProvider):

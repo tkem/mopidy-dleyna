@@ -5,8 +5,6 @@ import os
 
 from mopidy import config, exceptions, ext
 
-from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
-
 __version__ = '0.2.0'
 
 logger = logging.getLogger(__name__)
@@ -31,14 +29,18 @@ class Extension(ext.Extension):
         registry.add('backend', dLeynaBackend)
 
     def validate_environment(self):
+        from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
         try:
             import dbus
         except ImportError as e:
             raise exceptions.ExtensionError('dbus library not found', e)
         try:
             bus = dbus.SessionBus()
+        except Exception as e:
+            raise exceptions.ExtensionError('cannot create session bus', e)
+        try:
             obj = bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH)
             mgr = dbus.Interface(obj, MANAGER_IFACE)
-            logger.info('Running dleyna-server %s', mgr.GetVersion())
         except Exception as e:
             raise exceptions.ExtensionError('dleyna-server not found', e)
+        logger.info('Running dleyna-server %s', mgr.GetVersion())
