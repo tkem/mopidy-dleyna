@@ -8,6 +8,7 @@ import dbus
 
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
+
 from uritools import uricompose, urisplit
 
 from . import Extension
