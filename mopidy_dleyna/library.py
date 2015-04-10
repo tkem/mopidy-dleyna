@@ -5,10 +5,10 @@ import logging
 import os
 
 import dbus
-import uritools
 
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
+from uritools import uricompose, urisplit
 
 from . import Extension
 from .dleyna import ALBUM_TYPE_EX, ARTIST_TYPE_EX
@@ -64,7 +64,7 @@ def _quote(s):
 def _name_to_uri(path, type_ex, name):
     root = os.path.dirname(path)  # TODO: obj['Parent']?
     query = 'TypeEx = %s and DisplayName = %s' % (type_ex, _quote(name))
-    return uritools.uricompose(_SCHEME, path=root, query=query)
+    return uricompose(_SCHEME, path=root, query=query)
 
 
 def _name_to_album(path, name):
@@ -77,7 +77,7 @@ def _name_to_artist(path, name):
 
 def _properties_to_ref(obj):
     name = obj['DisplayName']
-    uri = uritools.uricompose(_SCHEME, path=obj['Path'])
+    uri = uricompose(_SCHEME, path=obj['Path'])
     type_ex = obj.get('TypeEx', obj['Type'])
     if type_ex == ALBUM_TYPE_EX:
         return Ref.album(name=name, uri=uri)
@@ -110,7 +110,7 @@ def _properties_to_album(obj):
     else:
         artists = None
     return Album(
-        uri=uritools.uricompose(_SCHEME, path=path),
+        uri=uricompose(_SCHEME, path=path),
         name=obj['DisplayName'],
         artists=artists,
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
@@ -119,7 +119,7 @@ def _properties_to_album(obj):
 
 def _properties_to_artist(obj):
     return Artist(
-        uri=uritools.uricompose(_SCHEME, path=obj['Path']),
+        uri=uricompose(_SCHEME, path=obj['Path']),
         name=obj['DisplayName']
     )
 
@@ -141,7 +141,7 @@ def _properties_to_track(obj):
     else:
         length = None
     return Track(
-        uri=uritools.uricompose(_SCHEME, path=path),
+        uri=uricompose(_SCHEME, path=path),
         name=obj['DisplayName'],
         artists=artists,
         album=album,
@@ -155,7 +155,7 @@ def _properties_to_track(obj):
 class dLeynaLibraryProvider(backend.LibraryProvider):
 
     root_directory = Ref.directory(
-        uri=uritools.uricompose(_SCHEME),
+        uri=uricompose(_SCHEME),
         name='Digital Media Servers'
     )
 
@@ -164,7 +164,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.__bus = dbus.SessionBus()
 
     def browse(self, uri):
-        path = uritools.urisplit(uri).getpath()
+        path = urisplit(uri).getpath()
         refs = []
         if path:
             container = self.__get_object(path, MEDIA_CONTAINER_IFACE)
@@ -177,7 +177,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         else:
             for obj in map(self.__get_properties, self.__get_server_paths()):
                 name = obj.get('FriendlyName', obj['DisplayName'])
-                uri = uritools.uricompose(_SCHEME, path=obj['Path'])
+                uri = uricompose(_SCHEME, path=obj['Path'])
                 refs.append(Ref.directory(name=name, uri=uri))
         return refs
 
@@ -186,7 +186,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def lookup(self, uri):
         # TODO: check for query component
-        path = uritools.urisplit(uri).getpath()
+        path = urisplit(uri).getpath()
         obj = self.__get_properties(path)
         type = obj['Type']
 
@@ -214,7 +214,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             if uri == self.root_directory.uri:
                 paths.update(self.__get_server_paths())
             else:
-                paths.add(uritools.urisplit(uri).getpath())
+                paths.add(urisplit(uri).getpath())
         logger.debug('dLeyna search paths: %s', paths)
 
         if query:
@@ -241,7 +241,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                 else:
                     logger.debug('Skipping dLeyna search result %r', obj)
         return SearchResult(
-            uri=uritools.uricompose(_SCHEME, query=query),
+            uri=uricompose(_SCHEME, query=query),
             albums=results[Album],
             artists=results[Artist],
             tracks=results[Track]

@@ -69,8 +69,9 @@ Licensed under the `Apache License, Version 2.0`_.
 Known Bugs and Limitations
 ------------------------------------------------------------------------
 
-Currently, only the browse interface is implemented, so searching will
-return no results from Digital Media Servers.
+Currently, track URIs may become invalid after a restart of either
+Mopidy or the media server.  So these should better not be stored in
+playlists for now.
 
 
 .. _Mopidy: http://www.mopidy.com/

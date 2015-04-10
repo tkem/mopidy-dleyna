@@ -5,7 +5,7 @@ import os
 
 from mopidy import config, exceptions, ext
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 logger = logging.getLogger(__name__)
 
@@ -43,4 +43,4 @@ class Extension(ext.Extension):
             mgr = dbus.Interface(obj, MANAGER_IFACE)
         except Exception as e:
             raise exceptions.ExtensionError('dleyna-server not found', e)
-        logger.info('Running dleyna-server %s', mgr.GetVersion())
+        logger.info('%s/dleyna-server %s', self.dist_name, mgr.GetVersion())
