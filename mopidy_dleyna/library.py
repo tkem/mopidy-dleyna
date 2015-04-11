@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
+import itertools
 import logging
 import os
 
@@ -8,6 +9,8 @@ import dbus
 
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
+
+import pykka
 
 from uritools import uricompose, urisplit
 
@@ -210,6 +213,20 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.__get_object(SERVER_ROOT_PATH, MANAGER_IFACE).Rescan()
 
     def search(self, query=None, uris=None, exact=False):
+        if query:
+            terms = []
+            mapping = _QUERY_MAPPING[exact]
+            for key, values in query.items():
+                if key in mapping:
+                    terms.extend(map(mapping[key].format, map(_quote, values)))
+                else:
+                    return None  # no mapping
+            query = '(%s)' % ') and ('.join(terms)
+        else:
+            query = '*'
+        logger.debug('dLeyna search query: %s', query)
+        args = [query, 0, 0, _SEARCH_FILTER]
+
         paths = set()
         for uri in uris or [self.root_directory.uri]:
             if uri == self.root_directory.uri:
@@ -218,29 +235,19 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                 paths.add(urisplit(uri).getpath())
         logger.debug('dLeyna search paths: %s', paths)
 
-        if query:
-            terms = []
-            mapping = _QUERY_MAPPING[exact]
-            for key, values in query.items():
-                if key in mapping:
-                    terms.extend(map(mapping[key].format, map(_quote, values)))
-                else:
-                    logger.warn('No dLeyna mapping for %s', key)
-            query = '(%s)' % ') and ('.join(terms)
-        else:
-            query = '*'
-        logger.debug('dLeyna search query: %s', query)
-
-        # TODO: async method calls
-        results = collections.defaultdict(list)
+        futures = []
         for path in paths:
             container = self.__get_object(path, MEDIA_CONTAINER_IFACE)
-            for obj in container.SearchObjects(query, 0, 0, _SEARCH_FILTER):
-                model = _properties_to_model(obj)
-                if model:
-                    results[type(model)].append(model)
-                else:
-                    logger.debug('Skipping dLeyna search result %r', obj)
+            futures.append(self.__call_async(container.SearchObjects, *args))
+
+        results = collections.defaultdict(list)
+        for obj in itertools.chain.from_iterable(pykka.get_all(futures)):
+            model = _properties_to_model(obj)
+            if model:
+                results[type(model)].append(model)
+            else:
+                logger.debug('Skipping dLeyna search result %r', obj)
+
         return SearchResult(
             uri=uricompose(_SCHEME, query=query),
             albums=results[Album],
@@ -260,3 +267,11 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def __get_server_paths(self):
         return self.__get_object(SERVER_ROOT_PATH, MANAGER_IFACE).GetServers()
+
+    def __call_async(self, func, *args, **kwargs):
+        future = pykka.ThreadingFuture()
+
+        def on_error(e):
+            future.set_exception(exc_info=(type(e), e, None))
+        func(*args, reply_handler=future.set, error_handler=on_error, **kwargs)
+        return future
