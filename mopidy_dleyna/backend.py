@@ -5,6 +5,7 @@ from mopidy import backend
 import pykka
 
 from . import Extension
+from .dleyna import dLeynaClient
 from .library import dLeynaLibraryProvider
 from .playback import dLeynaPlaybackProvider
 
@@ -15,5 +16,6 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
 
     def __init__(self, config, audio):
         super(dLeynaBackend, self).__init__()
-        self.library = dLeynaLibraryProvider(config, self)
+        self.dleyna = dLeynaClient()
+        self.library = dLeynaLibraryProvider(self)
         self.playback = dLeynaPlaybackProvider(audio, self)

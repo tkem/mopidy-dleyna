@@ -1,11 +1,8 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
-import itertools
 import logging
 import os
-
-import dbus
 
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
@@ -15,17 +12,20 @@ import pykka
 from uritools import uricompose, urisplit
 
 from . import Extension
-from .dleyna import ALBUM_TYPE_EX, ARTIST_TYPE_EX
-from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
-from .gupnp import MEDIA_CONTAINER_IFACE
 
 logger = logging.getLogger(__name__)
 
+
+ALBUM_TYPE_EX = 'container.album.musicAlbum'
+
+ARTIST_TYPE_EX = 'container.person.musicArtist'
+
+
 # workaround for minidlna crashing on empty(?) search filters
 # see https://github.com/01org/dleyna-server/issues/148
-_BROWSE_FILTER = _SEARCH_FILTER = ['*']
+BROWSE_FILTER = SEARCH_FILTER = ['*']
 
-_QUERY_MAPPING = [{
+QUERY_MAPPING = [{
     'any': """
     DisplayName contains {0}
     or Album contains {0}
@@ -58,7 +58,7 @@ _QUERY_MAPPING = [{
     # 'comment'
 }]
 
-_SCHEME = Extension.ext_name
+SCHEME = Extension.ext_name
 
 
 def _quote(s):
@@ -68,7 +68,7 @@ def _quote(s):
 def _name_to_uri(path, type_ex, name):
     root = os.path.dirname(path)  # TODO: obj['Parent']?
     query = 'TypeEx = %s and DisplayName = %s' % (type_ex, _quote(name))
-    return uricompose(_SCHEME, path=root, query=query)
+    return uricompose(SCHEME, path=root, query=query)
 
 
 def _name_to_album(path, name):
@@ -79,9 +79,11 @@ def _name_to_artist(path, name):
     return Artist(name=name, uri=_name_to_uri(path, ARTIST_TYPE_EX, name))
 
 
-def _properties_to_ref(obj):
+def _properties_to_ref(server, obj):
+    assert obj['Path'].startswith(server['Path'])
+    path = obj['Path'][len(server['Path']):]
+    uri = uricompose(SCHEME, host=server['UDN'], path=path)
     name = obj['DisplayName']
-    uri = uricompose(_SCHEME, path=obj['Path'])
     type_ex = obj.get('TypeEx', obj['Type'])
     if type_ex == ALBUM_TYPE_EX:
         return Ref.album(name=name, uri=uri)
@@ -95,41 +97,45 @@ def _properties_to_ref(obj):
         return None
 
 
-def _properties_to_model(obj):
+def _properties_to_model(server, obj):
     type_ex = obj.get('TypeEx', obj['Type'])
     if type_ex == ALBUM_TYPE_EX:
-        return _properties_to_album(obj)
+        return _properties_to_album(server, obj)
     elif type_ex == ARTIST_TYPE_EX:
-        return _properties_to_artist(obj)
+        return _properties_to_artist(server, obj)
     elif type_ex == 'music' or type_ex == 'audio':
-        return _properties_to_track(obj)
+        return _properties_to_track(server, obj)
     else:
         return None
 
 
-def _properties_to_album(obj):
-    path = obj['Path']
+def _properties_to_album(server, obj):
+    assert obj['Path'].startswith(server['Path'])
+    path = obj['Path'][len(server['Path']):]
     if 'Creator' in obj:
         artists = [_name_to_artist(path, obj['Creator'])]
     else:
         artists = None
     return Album(
-        uri=uricompose(_SCHEME, path=path),
+        uri=uricompose(SCHEME, host=server['UDN'], path=path),
         name=obj['DisplayName'],
         artists=artists,
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
     )
 
 
-def _properties_to_artist(obj):
+def _properties_to_artist(server, obj):
+    assert obj['Path'].startswith(server['Path'])
+    path = obj['Path'][len(server['Path']):]
     return Artist(
-        uri=uricompose(_SCHEME, path=obj['Path']),
+        uri=uricompose(SCHEME, host=server['UDN'], path=path),
         name=obj['DisplayName']
     )
 
 
-def _properties_to_track(obj):
-    path = obj['Path']
+def _properties_to_track(server, obj):
+    assert obj['Path'].startswith(server['Path'])
+    path = obj['Path'][len(server['Path']):]
     if 'Album' in obj:
         album = _name_to_album(path, obj['Album'])
     else:
@@ -145,7 +151,7 @@ def _properties_to_track(obj):
     else:
         length = None
     return Track(
-        uri=uricompose(_SCHEME, path=path),
+        uri=uricompose(SCHEME, host=server['UDN'], path=path),
         name=obj['DisplayName'],
         artists=artists,
         album=album,
@@ -159,63 +165,65 @@ def _properties_to_track(obj):
 class dLeynaLibraryProvider(backend.LibraryProvider):
 
     root_directory = Ref.directory(
-        uri=uricompose(_SCHEME),
+        uri=uricompose(SCHEME),
         name='Digital Media Servers'
     )
 
-    def __init__(self, config, backend):
-        super(dLeynaLibraryProvider, self).__init__(backend)
-        self.__bus = dbus.SessionBus()
-
     def browse(self, uri):
-        path = urisplit(uri).getpath()
         refs = []
-        if path:
-            container = self.__get_object(path, MEDIA_CONTAINER_IFACE)
-            for obj in container.ListChildren(0, 0, _BROWSE_FILTER):
-                ref = _properties_to_ref(obj)
+        dleyna = self.backend.dleyna
+        if uri == self.root_directory.uri:
+            for server in dleyna.servers():
+                name = server.get('FriendlyName', server['DisplayName'])
+                uri = uricompose(SCHEME, host=server['UDN'])
+                refs.append(Ref.directory(name=name, uri=uri))
+        else:
+            parts = urisplit(uri)
+            server = dleyna.get_server(parts.gethost())
+            container = dleyna.get_container(server['Path'] + parts.getpath())
+            for obj in container.ListChildren(0, 0, BROWSE_FILTER):
+                ref = _properties_to_ref(server, obj)
                 if ref:
                     refs.append(ref)
                 else:
                     logger.debug('Skipping dLeyna browse result %r', obj)
-        else:
-            for obj in map(self.__get_properties, self.__get_server_paths()):
-                name = obj.get('FriendlyName', obj['DisplayName'])
-                uri = uricompose(_SCHEME, path=obj['Path'])
-                refs.append(Ref.directory(name=name, uri=uri))
         return refs
 
     def get_images(self, uris):
         return {}  # TODO
 
     def lookup(self, uri):
-        # TODO: check for query component
-        path = urisplit(uri).getpath()
-        obj = self.__get_properties(path)
-        type = obj['Type']
+        parts = urisplit(uri)
+        dleyna = self.backend.dleyna
+        server = dleyna.get_server(parts.gethost())
+        path = server['Path'] + parts.getpath()
+        props = dleyna.get_properties(path)
+        type = props['Type']
 
         tracks = []
+        # TODO: test on iface?
         if type == 'container':
-            container = self.__get_object(path, MEDIA_CONTAINER_IFACE)
-            for obj in container.ListItems(0, 0, _BROWSE_FILTER):
-                track = _properties_to_track(obj)
+            # TODO: recursive/search?
+            container = dleyna.get_container(path)
+            for obj in container.ListItems(0, 0, BROWSE_FILTER):
+                track = _properties_to_track(server, obj)
                 if track:
                     tracks.append(track)
                 else:
                     logger.debug('Skipping dLeyna lookup result %r', obj)
-        elif type == 'music' or 'type' == 'audio':
-            tracks.append(_properties_to_track(obj))
+        elif type == 'music' or type == 'audio':
+            tracks.append(_properties_to_track(server, props))
         else:
             logger.warn('Invalid dLeyna type for %s: %s', uri, type)
         return tracks
 
     def refresh(self, uri=None):
-        self.__get_object(SERVER_ROOT_PATH, MANAGER_IFACE).Rescan()
+        self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
         if query:
             terms = []
-            mapping = _QUERY_MAPPING[exact]
+            mapping = QUERY_MAPPING[exact]
             for key, values in query.items():
                 if key in mapping:
                     terms.extend(map(mapping[key].format, map(_quote, values)))
@@ -225,53 +233,46 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         else:
             query = '*'
         logger.debug('dLeyna search query: %s', query)
-        args = [query, 0, 0, _SEARCH_FILTER]
-
-        paths = set()
-        for uri in uris or [self.root_directory.uri]:
-            if uri == self.root_directory.uri:
-                paths.update(self.__get_server_paths())
-            else:
-                paths.add(urisplit(uri).getpath())
-        logger.debug('dLeyna search paths: %s', paths)
 
         futures = []
-        for path in paths:
-            container = self.__get_object(path, MEDIA_CONTAINER_IFACE)
-            futures.append(self.__call_async(container.SearchObjects, *args))
+        for uri in uris or [self.root_directory.uri]:
+            if uri == self.root_directory.uri:
+                for server in self.backend.dleyna.servers():
+                    uri = uricompose(SCHEME, host=server['UDN'])
+                    futures.append(self.__search(query, uri))
+            else:
+                futures.append(self.__search(query, uri))
 
         results = collections.defaultdict(list)
-        for obj in itertools.chain.from_iterable(pykka.get_all(futures)):
-            model = _properties_to_model(obj)
-            if model:
-                results[type(model)].append(model)
-            else:
-                logger.debug('Skipping dLeyna search result %r', obj)
-
+        for server, objs in pykka.get_all(futures):
+            for obj in objs:
+                model = _properties_to_model(server, obj)
+                if model:
+                    results[type(model)].append(model)
+                else:
+                    logger.debug('Skipping dLeyna search result %r', obj)
         return SearchResult(
-            uri=uricompose(_SCHEME, query=query),
+            uri=uricompose(SCHEME, query=query),
             albums=results[Album],
             artists=results[Artist],
             tracks=results[Track]
         )
 
-    def __get_object(self, path, iface=None):
-        obj = self.__bus.get_object(SERVER_BUS_NAME, path)
-        if iface:
-            return dbus.Interface(obj, iface)
-        else:
-            return obj
-
-    def __get_properties(self, path):
-        return self.__get_object(path, dbus.PROPERTIES_IFACE).GetAll('')
-
-    def __get_server_paths(self):
-        return self.__get_object(SERVER_ROOT_PATH, MANAGER_IFACE).GetServers()
-
-    def __call_async(self, func, *args, **kwargs):
+    def __search(self, query, uri):
+        parts = urisplit(uri)
+        dleyna = self.backend.dleyna
+        server = dleyna.get_server(parts.gethost())
         future = pykka.ThreadingFuture()
 
-        def on_error(e):
+        def reply_handler(objs):
+            future.set((server, objs))
+
+        def error_handler(e):
             future.set_exception(exc_info=(type(e), e, None))
-        func(*args, reply_handler=future.set, error_handler=on_error, **kwargs)
+
+        dleyna.get_container(server['Path'] + parts.getpath()).SearchObjects(
+            query, 0, 0, SEARCH_FILTER,
+            reply_handler=reply_handler,
+            error_handler=error_handler
+        )
         return future

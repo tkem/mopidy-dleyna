@@ -29,7 +29,6 @@ class Extension(ext.Extension):
         registry.add('backend', dLeynaBackend)
 
     def validate_environment(self):
-        from .dleyna import MANAGER_IFACE, SERVER_BUS_NAME, SERVER_ROOT_PATH
         try:
             import dbus
         except ImportError as e:
@@ -39,8 +38,13 @@ class Extension(ext.Extension):
         except Exception as e:
             raise exceptions.ExtensionError('cannot create session bus', e)
         try:
+            from .dleyna import SERVER_BUS_NAME, SERVER_ROOT_PATH
             obj = bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH)
-            mgr = dbus.Interface(obj, MANAGER_IFACE)
         except Exception as e:
-            raise exceptions.ExtensionError('dleyna-server not found', e)
+            raise exceptions.ExtensionError('cannot access dleyna-server', e)
+        try:
+            from .dleyna import SERVER_MANAGER_IFACE
+            mgr = dbus.Interface(obj, SERVER_MANAGER_IFACE)
+        except Exception as e:
+            raise exceptions.ExtensionError('cannot access server manager', e)
         logger.info('%s/dleyna-server %s', self.dist_name, mgr.GetVersion())
