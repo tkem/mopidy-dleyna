@@ -20,10 +20,31 @@ ALBUM_TYPE_EX = 'container.album.musicAlbum'
 
 ARTIST_TYPE_EX = 'container.person.musicArtist'
 
+# AlbumArtURL as workaround for minidlna crashing on empty search
+# filters; see https://github.com/01org/dleyna-server/issues/148
+BROWSE_FILTER = [
+    'AlbumArtURL',
+    'DisplayName',
+    'Path',
+    'Type',
+    'TypeEx'
+]
 
-# workaround for minidlna crashing on empty(?) search filters
-# see https://github.com/01org/dleyna-server/issues/148
-BROWSE_FILTER = SEARCH_FILTER = ['*']
+LOOKUP_FILTER = SEARCH_FILTER = [
+    'Album',
+    'AlbumArtURL',
+    'Artist',
+    'Artists',
+    'Creator',
+    'Date',
+    'DisplayName',
+    'Duration',
+    'Genre',
+    'Path',
+    'TrackNumber',
+    'Type',
+    'TypeEx',
+]
 
 QUERY_MAPPING = [{
     'any': """
@@ -205,7 +226,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         if type == 'container':
             # TODO: recursive/search?
             container = dleyna.get_container(path)
-            for obj in container.ListItems(0, 0, BROWSE_FILTER):
+            for obj in container.ListItems(0, 0, LOOKUP_FILTER):
                 track = _properties_to_track(server, obj)
                 if track:
                     tracks.append(track)
