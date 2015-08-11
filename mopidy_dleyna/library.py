@@ -4,6 +4,8 @@ import collections
 import logging
 import os
 
+import dbus
+
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
 
@@ -82,6 +84,8 @@ QUERY_MAPPING = [{
 }]
 
 SCHEME = Extension.ext_name
+
+ZERO = dbus.UInt32(0)
 
 
 def _quote(s):
@@ -212,7 +216,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             parts = urisplit(uri)
             server = dleyna.get_server(parts.gethost())
             container = dleyna.get_container(server['Path'] + parts.getpath())
-            for obj in container.ListChildren(0, 0, BROWSE_FILTER):
+            for obj in container.ListChildren(ZERO, ZERO, BROWSE_FILTER):
                 ref = _properties_to_ref(server, obj)
                 if ref:
                     refs.append(ref)
@@ -236,7 +240,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         if type == 'container':
             container = dleyna.get_container(path)
             for obj in container.SearchObjects(
-                LOOKUP_QUERY, 0, 0, SEARCH_FILTER
+                LOOKUP_QUERY, ZERO, ZERO, SEARCH_FILTER
             ):
                 track = _properties_to_track(server, obj)
                 if track:
@@ -303,7 +307,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             future.set_exception(exc_info=(type(e), e, None))
 
         dleyna.get_container(server['Path'] + parts.getpath()).SearchObjects(
-            query, 0, 0, SEARCH_FILTER,
+            query, ZERO, ZERO, SEARCH_FILTER,
             reply_handler=reply_handler,
             error_handler=error_handler
         )

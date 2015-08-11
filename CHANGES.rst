@@ -1,3 +1,9 @@
+0.4.1 2015-08-11
+----------------
+
+- Add workaround for integer conversion issues on 32 bit systems.
+
+
 0.4.0 2015-08-11
 ----------------
 
