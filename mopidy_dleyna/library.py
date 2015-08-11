@@ -30,7 +30,7 @@ BROWSE_FILTER = [
     'TypeEx'
 ]
 
-LOOKUP_FILTER = SEARCH_FILTER = [
+SEARCH_FILTER = [
     'Album',
     'AlbumArtURL',
     'Artist',
@@ -45,6 +45,8 @@ LOOKUP_FILTER = SEARCH_FILTER = [
     'Type',
     'TypeEx',
 ]
+
+LOOKUP_QUERY = 'Type = "music"'
 
 QUERY_MAPPING = [{
     'any': """
@@ -162,7 +164,7 @@ def _properties_to_artist(server, obj):
 def _properties_to_track(server, obj):
     assert obj['Path'].startswith(server['Path'])
     path = obj['Path'][len(server['Path']):]
-    logger.debug(obj)
+    # logger.debug(obj)
     if 'Album' in obj:
         album = _name_to_album(path, obj['Album'])
         if 'AlbumArtURL' in obj:
@@ -218,8 +220,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                     logger.debug('Skipping dLeyna browse result %r', obj)
         return refs
 
-    # def get_images(self, uris):
-    #    return {}  # TODO
+    def get_images(self, uris):
+        return {}  # TODO
 
     def lookup(self, uri):
         parts = urisplit(uri)
@@ -232,9 +234,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         tracks = []
         # TODO: test on iface?
         if type == 'container':
-            # TODO: recursive/search?
             container = dleyna.get_container(path)
-            for obj in container.ListItems(0, 0, LOOKUP_FILTER):
+            for obj in container.SearchObjects(
+                LOOKUP_QUERY, 0, 0, SEARCH_FILTER
+            ):
                 track = _properties_to_track(server, obj)
                 if track:
                     tracks.append(track)
