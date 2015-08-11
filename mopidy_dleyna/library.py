@@ -137,10 +137,15 @@ def _properties_to_album(server, obj):
         artists = [_name_to_artist(path, obj['Creator'])]
     else:
         artists = None
+    if 'AlbumArtURL' in obj:
+        images = [obj['AlbumArtURL']]
+    else:
+        images = None
     return Album(
         uri=uricompose(SCHEME, host=server['UDN'], path=path),
         name=obj['DisplayName'],
         artists=artists,
+        images=images,
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
     )
 
@@ -157,8 +162,11 @@ def _properties_to_artist(server, obj):
 def _properties_to_track(server, obj):
     assert obj['Path'].startswith(server['Path'])
     path = obj['Path'][len(server['Path']):]
+    logger.debug(obj)
     if 'Album' in obj:
         album = _name_to_album(path, obj['Album'])
+        if 'AlbumArtURL' in obj:
+            album = album.copy(images=[obj['AlbumArtURL']])
     else:
         album = None
     if 'Artists' in obj:
@@ -210,8 +218,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                     logger.debug('Skipping dLeyna browse result %r', obj)
         return refs
 
-    def get_images(self, uris):
-        return {}  # TODO
+    # def get_images(self, uris):
+    #    return {}  # TODO
 
     def lookup(self, uri):
         parts = urisplit(uri)

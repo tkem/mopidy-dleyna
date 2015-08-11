@@ -21,27 +21,26 @@ logger = logging.getLogger(__name__)
 class dLeynaClient(object):
 
     def __init__(self):
-        self.__bus = bus = dbus.SessionBus()
+        self.__bus = bus = self.__session_bus()
         self.__lock = threading.RLock()
         self.__bypath = {}
         self.__byudn = {}
-
-        self.__manager = self.get_object(
+        self.__manager = mgr = self.get_object(
             SERVER_ROOT_PATH,
             SERVER_MANAGER_IFACE
         )
+        logger.debug('dleyna-server version %s', mgr.GetVersion())
         bus.add_signal_receiver(
-            self.add_server,
-            bus_name=SERVER_BUS_NAME,
-            signal_name='FoundServer'
+            self.found_server, 'FoundServer',
+            bus_name=SERVER_BUS_NAME
         )
         bus.add_signal_receiver(
-            self.remove_server,
-            bus_name=SERVER_BUS_NAME,
-            signal_name='LostServer'
+            self.lost_server, 'LostServer',
+            bus_name=SERVER_BUS_NAME
         )
-        for path in self.__manager.GetServers():
-            self.add_server(path)
+        # TODO: delay until later?
+        for path in mgr.GetServers():
+            self.found_server(path)
 
     def get_object(self, path, iface=None):
         obj = self.__bus.get_object(SERVER_BUS_NAME, path)
@@ -49,13 +48,6 @@ class dLeynaClient(object):
 
     def get_properties(self, path):
         return self.get_object(path, dbus.PROPERTIES_IFACE).GetAll('')
-
-    def get_server(self, udn):
-        try:
-            with self.__lock:
-                return self.__byudn[udn]
-        except KeyError:
-            raise LookupError('DLNA media server not found: %s' % udn)
 
     def get_container(self, path):
         return self.get_object(path, MEDIA_CONTAINER_IFACE)
@@ -70,23 +62,44 @@ class dLeynaClient(object):
         with self.__lock:
             return list(self.__bypath.values())
 
-    def add_server(self, path):
-        props = self.get_properties(path)
-        udn = props['UDN']
-        with self.__lock:
-            self.__bypath[path] = props
-            self.__byudn[props['UDN']] = props
-        logger.info('Added DLNA media server %s', udn)
-
-    def remove_server(self, path):
+    def get_server(self, udn):
         try:
             with self.__lock:
-                udn = self.__bypath[path]['UDN']
-                del self.__bypath[path]
-                del self.__byudn[udn]
-            logger.info('Removed DLNA media server %s', udn)
+                return self.__byudn[udn]
         except KeyError:
-            logger.error('Unknown DLNA server path %s', path)
+            raise LookupError('DLNA media server not found: %s' % udn)
+
+    def found_server(self, path):
+        try:
+            props = self.get_properties(path)
+            with self.__lock:
+                self.__bypath[path] = self.__byudn[props['UDN']] = props
+        except dbus.DBusException as e:
+            logger.warn('Skipping %s: %s', path, e.get_dbus_message())
+        except Exception:
+            logger.error('Error adding %s', path, exc_info=True)
+        else:
+            logger.info('Found DLNA media server %s [%s]',
+                        props['FriendlyName'], props['UDN'])
+
+    def lost_server(self, path):
+        try:
+            props = self.__bypath[path]
+            with self.__lock:
+                del self.__byudn[props['UDN']]
+                del self.__bypath[path]
+        except KeyError:
+            logger.debug('Unknown DLNA server path %s', path)
+        except Exception:
+            logger.error('Error removing %s', path, exc_info=True)
+        else:
+            logger.info('Lost DLNA media server %s [%s]',
+                        props['FriendlyName'], props['UDN'])
 
     def rescan(self):
         self.__manager.Rescan()
+
+    def __session_bus(self):
+        import os
+        # FIXME: dbus.SessionBus() ignores DBUS_SESSION_BUS_ADDRESS?
+        return dbus.bus.BusConnection(os.environ['DBUS_SESSION_BUS_ADDRESS'])
