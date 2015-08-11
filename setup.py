@@ -26,7 +26,7 @@ setup(
     install_requires=[
         'setuptools',
         'Mopidy >= 1.0',
-        'Pykka >= 1.1',
+        'Pykka >= 1.2',
         'uritools >= 1.0'
     ],
     entry_points={

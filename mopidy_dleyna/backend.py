@@ -1,5 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
+import os
+
 from mopidy import backend
 
 import pykka
@@ -16,6 +18,7 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
 
     def __init__(self, config, audio):
         super(dLeynaBackend, self).__init__()
-        self.dleyna = dLeynaClient()
+        # FIXME: how to use session bus?
+        self.dleyna = dLeynaClient(os.environ['DBUS_SESSION_BUS_ADDRESS'])
         self.library = dLeynaLibraryProvider(self)
         self.playback = dLeynaPlaybackProvider(audio, self)

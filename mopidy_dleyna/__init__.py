@@ -29,28 +29,30 @@ class Extension(ext.Extension):
         registry.add('backend', dLeynaBackend)
 
     def validate_environment(self):
-        from .dleyna import SERVER_BUS_NAME, SERVER_ROOT_PATH
+        import dbus
         try:
-            bus = self.__session_bus()
+            if 'DBUS_SESSION_BUS_ADDRESS' in os.environ:
+                bus = dbus.SessionBus()
+            else:
+                bus = self.__start_bus()
         except Exception as e:
             raise exceptions.ExtensionError(str(e))
+        from .dleyna import SERVER_BUS_NAME, SERVER_ROOT_PATH
         try:
             bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH)
         except Exception as e:
             raise exceptions.ExtensionError(str(e))
 
-    def __session_bus(self):
+    def __start_bus(self):
         import dbus
         import subprocess
-        if 'DBUS_SESSION_BUS_ADDRESS' in os.environ:
-            return dbus.SessionBus()
         logger.info('Starting D-Bus session bus')
         launch = subprocess.Popen('dbus-launch', stdout=subprocess.PIPE)
-        for line in map(str.strip, launch.stdout):
+        for line in launch.stdout:
             name, sep, value = line.partition(b'=')
             if sep:
                 logger.debug('dbus-launch output: %s=%s', name, value)
-                os.environ[name] = value
+                os.environ[name.strip()] = value.strip()
             else:
                 logger.warn('Unexpected dbus-launch output: %s', line)
         launch.wait()

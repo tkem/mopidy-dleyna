@@ -4,8 +4,6 @@ import collections
 import logging
 import os
 
-import dbus
-
 from mopidy import backend
 from mopidy.models import Album, Artist, Ref, SearchResult, Track
 
@@ -84,8 +82,6 @@ QUERY_MAPPING = [{
 }]
 
 SCHEME = Extension.ext_name
-
-ZERO = dbus.UInt32(0)
 
 
 def _quote(s):
@@ -208,15 +204,16 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         refs = []
         dleyna = self.backend.dleyna
         if uri == self.root_directory.uri:
-            for server in dleyna.servers():
-                name = server.get('FriendlyName', server['DisplayName'])
+            for server in dleyna.servers().get():
+                name = server['FriendlyName']
                 uri = uricompose(SCHEME, host=server['UDN'])
                 refs.append(Ref.directory(name=name, uri=uri))
         else:
             parts = urisplit(uri)
-            server = dleyna.get_server(parts.gethost())
-            container = dleyna.get_container(server['Path'] + parts.getpath())
-            for obj in container.ListChildren(ZERO, ZERO, BROWSE_FILTER):
+            server = dleyna.server(parts.gethost()).get()
+            path = server['Path'] + parts.getpath()
+            future = dleyna.children(path, filter=BROWSE_FILTER)
+            for obj in future.get():
                 ref = _properties_to_ref(server, obj)
                 if ref:
                     refs.append(ref)
@@ -230,18 +227,15 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
         parts = urisplit(uri)
         dleyna = self.backend.dleyna
-        server = dleyna.get_server(parts.gethost())
+        server = dleyna.server(parts.gethost()).get()
         path = server['Path'] + parts.getpath()
-        props = dleyna.get_properties(path)
+        props = dleyna.properties(path).get()
         type = props['Type']
 
         tracks = []
-        # TODO: test on iface?
         if type == 'container':
-            container = dleyna.get_container(path)
-            for obj in container.SearchObjects(
-                LOOKUP_QUERY, ZERO, ZERO, SEARCH_FILTER
-            ):
+            future = dleyna.search(path, LOOKUP_QUERY, filter=SEARCH_FILTER)
+            for obj in future.get():
                 track = _properties_to_track(server, obj)
                 if track:
                     tracks.append(track)
@@ -254,6 +248,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return tracks
 
     def refresh(self, uri=None):
+        logger.info('library.refresh')
         self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
@@ -270,18 +265,19 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             query = '*'
         logger.debug('dLeyna search query: %s', query)
 
+        # TODO: refactor this (no future.map from reply_handler?)
         futures = []
         for uri in uris or [self.root_directory.uri]:
             if uri == self.root_directory.uri:
-                for server in self.backend.dleyna.servers():
+                for server in self.backend.dleyna.servers().get():
                     uri = uricompose(SCHEME, host=server['UDN'])
                     futures.append(self.__search(query, uri))
             else:
                 futures.append(self.__search(query, uri))
 
         results = collections.defaultdict(list)
-        for server, objs in pykka.get_all(futures):
-            for obj in objs:
+        for objs in pykka.get_all(futures):
+            for server, obj in objs:
                 model = _properties_to_model(server, obj)
                 if model:
                     results[type(model)].append(model)
@@ -297,18 +293,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def __search(self, query, uri):
         parts = urisplit(uri)
         dleyna = self.backend.dleyna
-        server = dleyna.get_server(parts.gethost())
-        future = pykka.ThreadingFuture()
-
-        def reply_handler(objs):
-            future.set((server, objs))
-
-        def error_handler(e):
-            future.set_exception(exc_info=(type(e), e, None))
-
-        dleyna.get_container(server['Path'] + parts.getpath()).SearchObjects(
-            query, ZERO, ZERO, SEARCH_FILTER,
-            reply_handler=reply_handler,
-            error_handler=error_handler
-        )
-        return future
+        server = dleyna.server(parts.gethost()).get()
+        path = server['Path'] + parts.getpath()
+        future = dleyna.search(path, query, filter=SEARCH_FILTER)
+        return future.map(lambda result: (server, result))
