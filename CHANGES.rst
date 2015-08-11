@@ -1,3 +1,15 @@
+0.4.0 2015-08-11
+----------------
+
+- Start session bus on headless systems or when running as a daemon.
+
+- Use recursive search for container lookups.
+
+- Add browse/search filters.
+
+- Peristent URI handling.
+
+
 0.3.1 2015-04-11
 ----------------
 
