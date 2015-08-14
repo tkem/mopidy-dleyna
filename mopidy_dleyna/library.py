@@ -5,7 +5,7 @@ import logging
 import os
 
 from mopidy import backend
-from mopidy.models import Album, Artist, Ref, SearchResult, Track
+from mopidy.models import Album, Artist, Image, Ref, SearchResult, Track
 
 import pykka
 
@@ -20,14 +20,17 @@ ALBUM_TYPE_EX = 'container.album.musicAlbum'
 
 ARTIST_TYPE_EX = 'container.person.musicArtist'
 
-# AlbumArtURL as workaround for minidlna crashing on empty search
-# filters; see https://github.com/01org/dleyna-server/issues/148
 BROWSE_FILTER = [
-    'AlbumArtURL',
     'DisplayName',
     'Path',
+    'RefPath',
     'Type',
     'TypeEx'
+]
+
+IMAGES_FILTER = [
+    'AlbumArtURL',
+    'Path'
 ]
 
 SEARCH_FILTER = [
@@ -41,6 +44,7 @@ SEARCH_FILTER = [
     'Duration',
     'Genre',
     'Path',
+    'RefPath',
     'TrackNumber',
     'Type',
     'TypeEx',
@@ -103,8 +107,12 @@ def _name_to_artist(path, name):
 
 
 def _properties_to_ref(server, obj):
-    assert obj['Path'].startswith(server['Path'])
-    path = obj['Path'][len(server['Path']):]
+    if 'RefPath' in obj:
+        assert obj['RefPath'].startswith(server['Path'])
+        path = obj['RefPath'][len(server['Path']):]
+    else:
+        assert obj['Path'].startswith(server['Path'])
+        path = obj['Path'][len(server['Path']):]
     uri = uricompose(SCHEME, host=server['UDN'], path=path)
     name = obj['DisplayName']
     type_ex = obj.get('TypeEx', obj['Type'])
@@ -133,8 +141,12 @@ def _properties_to_model(server, obj):
 
 
 def _properties_to_album(server, obj):
-    assert obj['Path'].startswith(server['Path'])
-    path = obj['Path'][len(server['Path']):]
+    if 'RefPath' in obj:
+        assert obj['RefPath'].startswith(server['Path'])
+        path = obj['RefPath'][len(server['Path']):]
+    else:
+        assert obj['Path'].startswith(server['Path'])
+        path = obj['Path'][len(server['Path']):]
     if 'Creator' in obj:
         artists = [_name_to_artist(path, obj['Creator'])]
     else:
@@ -153,8 +165,12 @@ def _properties_to_album(server, obj):
 
 
 def _properties_to_artist(server, obj):
-    assert obj['Path'].startswith(server['Path'])
-    path = obj['Path'][len(server['Path']):]
+    if 'RefPath' in obj:
+        assert obj['RefPath'].startswith(server['Path'])
+        path = obj['RefPath'][len(server['Path']):]
+    else:
+        assert obj['Path'].startswith(server['Path'])
+        path = obj['Path'][len(server['Path']):]
     return Artist(
         uri=uricompose(SCHEME, host=server['UDN'], path=path),
         name=obj['DisplayName']
@@ -162,9 +178,12 @@ def _properties_to_artist(server, obj):
 
 
 def _properties_to_track(server, obj):
-    assert obj['Path'].startswith(server['Path'])
-    path = obj['Path'][len(server['Path']):]
-    # logger.debug(obj)
+    if 'RefPath' in obj:
+        assert obj['RefPath'].startswith(server['Path'])
+        path = obj['RefPath'][len(server['Path']):]
+    else:
+        assert obj['Path'].startswith(server['Path'])
+        path = obj['Path'][len(server['Path']):]
     if 'Album' in obj:
         album = _name_to_album(path, obj['Album'])
         if 'AlbumArtURL' in obj:
@@ -191,6 +210,12 @@ def _properties_to_track(server, obj):
         length=length,
         track_no=obj.get('TrackNumber')
     )
+
+
+def _map(future, func):
+    wrapper = future.__class__()
+    wrapper.set_get_hook(lambda timeout: func(future.get(timeout)))
+    return wrapper
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
@@ -222,7 +247,32 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return refs
 
     def get_images(self, uris):
-        return {}  # TODO
+        dleyna = self.backend.dleyna
+        servers = {obj['UDN']: obj for obj in dleyna.servers().get()}
+        pathmap = collections.defaultdict(list)  # udn -> paths
+        urimap = {}  # path -> uri
+        for uri in uris:
+            parts = urisplit(uri)
+            udn = parts.gethost()
+            path = servers[udn]['Path'] + parts.getpath()
+            urimap[path] = uri
+            pathmap[udn].append(path)
+        futures = []
+        for udn, paths in pathmap.items():
+            futures.extend(self.__lookup(servers[udn], paths, IMAGES_FILTER))
+        results = {}
+        for obj in (obj for future in futures for obj in future.get()):
+            try:
+                image = Image(uri=obj['AlbumArtURL'])
+            except KeyError:
+                logger.debug('Skipping result without image: %s', obj['Path'])
+                continue
+            try:
+                results[urimap[obj['Path']]] = [image]
+            except KeyError:
+                logger.warn('Unexpected dLeyna result path: %s', obj['Path'])
+            logger.debug('images results: %r', results)
+        return results
 
     def lookup(self, uri):
         parts = urisplit(uri)
@@ -248,7 +298,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return tracks
 
     def refresh(self, uri=None):
-        logger.info('library.refresh')
+        logger.info('Refreshing dLeyna library')
         self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
@@ -289,6 +339,22 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             artists=results[Artist],
             tracks=results[Track]
         )
+
+    # TODO: refactor (move to client?), configurable chunk size
+    def __lookup(self, server, paths, filter=['*'], limit=10):
+        dleyna = self.backend.dleyna
+        futures = []
+        root = server['Path']
+        if 'Path' in server.get('SearchCaps', []):
+            for n in range(0, len(paths), limit):
+                chunk = paths[n:n+limit]
+                query = ' or '.join('Path = "%s"' % path for path in chunk)
+                futures.append(dleyna.search(root, query, 0, 0, filter))
+        else:
+            for path in paths:
+                # pykka.Future.map() doesn't work with Dictionary value
+                futures.append(_map(dleyna.properties(path), lambda x: [x]))
+        return futures
 
     def __search(self, query, uri):
         parts = urisplit(uri)
