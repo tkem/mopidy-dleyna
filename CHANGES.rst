@@ -1,3 +1,9 @@
+0.4.2 2015-08-14
+----------------
+
+- Use asynchronous D-Bus calls to improve performance on Raspberry Pi.
+
+
 0.4.1 2015-08-11
 ----------------
 

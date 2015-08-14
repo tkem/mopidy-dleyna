@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import logging
 import sys
 import threading
-import time
 
 import dbus
 
@@ -38,16 +37,15 @@ def _exc_future(exc_info):
 
 
 def _dbus_future(func, *args, **kwargs):
-    # TODO: remove timing info
+    # import time
     future = pykka.ThreadingFuture()
-    t = time.time()
 
     def on_reply(result):
-        logger.info('%s reply after %.3fs', func, time.time() - t)
+        # logger.info('%s reply after %.3fs', func, time.time() - t)
         future.set(result)
 
     def on_error(e):
-        logger.info('%s error after %.3fs', func, time.time() - t)
+        # logger.info('%s error after %.3fs', func, time.time() - t)
         future.set_exception(exc_info=(type(e), e, None))
 
     func(*args, reply_handler=on_reply, error_handler=on_error, **kwargs)
