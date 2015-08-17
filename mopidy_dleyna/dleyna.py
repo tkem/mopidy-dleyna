@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import logging
 import threading
+import time
 
 import dbus
 
@@ -152,10 +153,23 @@ class dLeynaClient(object):
     @classmethod
     def __call_async(cls, func, *args, **kwargs):
         future = cls.Future()
+        name = getattr(func, '_method_name', 'method')
+        t = time.time()
 
-        def error(e):
+        def reply_handler(value):
+            logger.debug('dLeyna %s reply after %.3fs', name, time.time() - t)
+            future.set(value)
+
+        def error_handler(e):
+            logger.debug('dLeyna %s error after %.3fs', name, time.time() - t)
             future.set_exception(exc_info=(type(e), e, None))
-        func(*args, reply_handler=future.set, error_handler=error, **kwargs)
+
+        func(
+            *args,
+            reply_handler=reply_handler,
+            error_handler=error_handler,
+            **kwargs
+        )
         return future
 
 if __name__ == '__main__':
