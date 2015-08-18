@@ -66,14 +66,6 @@ Copyright (c) 2015 Thomas Kemmer.
 Licensed under the `Apache License, Version 2.0`_.
 
 
-Known Bugs and Limitations
-------------------------------------------------------------------------
-
-Currently, track URIs may become invalid after a restart of either
-Mopidy or the media server.  So these should better not be stored in
-playlists for now.
-
-
 .. _Mopidy: http://www.mopidy.com/
 .. _DLNA: http://www.dlna.org/
 .. _dLeyna: http://01.org/dleyna
