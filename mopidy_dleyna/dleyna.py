@@ -94,10 +94,7 @@ class dLeynaClient(object):
 
     def __found_server(self, path, notify_handler=lambda path, obj: None):
         def reply_handler(obj):
-            logger.info(
-                'Found media server %s: %s [%s]',
-                path, obj['FriendlyName'], obj['UDN']
-            )
+            self.__log_server_action('Found', obj)
             with self.__lock:
                 self.__servers[obj['UDN']] = obj
             notify_handler(path, obj)
@@ -115,12 +112,9 @@ class dLeynaClient(object):
 
     def __lost_server(self, path):
         with self.__lock:
-            for udn, obj in list(self.__servers.values()):
+            for udn, obj in list(self.__servers.items()):
                 if obj['Path'] == path:
-                    logger.info(
-                        'Lost media server %s: %s [%s]',
-                        path, obj['FriendlyName'], obj['UDN']
-                    )
+                    self.__log_server_action('Lost', obj)
                     del self.__servers[udn]
 
     def __get_servers(self):
@@ -171,6 +165,13 @@ class dLeynaClient(object):
             **kwargs
         )
         return future
+
+    @classmethod
+    def __log_server_action(action, obj):
+        logger.info(
+            '%s media server %s: %s [%s]',
+            obj['Path'], obj['FriendlyName'], obj['UDN']
+        )
 
 if __name__ == '__main__':
     import argparse
