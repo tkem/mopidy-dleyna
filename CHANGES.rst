@@ -1,3 +1,13 @@
+0.5.3 2015-08-19
+----------------
+
+- Fix lost server handling.
+
+- Check device's `SearchCaps` when searching.
+
+- Improve log messages.
+
+
 0.5.2 2015-08-18
 ----------------
 
