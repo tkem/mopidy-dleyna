@@ -167,10 +167,10 @@ class dLeynaClient(object):
         return future
 
     @classmethod
-    def __log_server_action(action, obj):
+    def __log_server_action(cls, action, obj):
         logger.info(
             '%s media server %s: %s [%s]',
-            obj['Path'], obj['FriendlyName'], obj['UDN']
+            action, obj['Path'], obj['FriendlyName'], obj['UDN']
         )
 
 if __name__ == '__main__':

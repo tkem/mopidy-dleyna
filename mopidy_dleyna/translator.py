@@ -76,7 +76,7 @@ def ref(baseuri, obj):
     elif type.startswith('container'):
         return models.Ref.directory(name=name, uri=uri)
     else:
-        raise ValueError('Unsupported object type "%s"', type)
+        raise ValueError('Object type "%s" not supported' % type)
 
 
 def album(baseuri, obj):
@@ -117,7 +117,7 @@ def model(baseuri, obj):
     elif type == ARTIST_TYPE:
         return artist(baseuri, obj)
     else:
-        raise ValueError('Unsupported object type "%s"', type)
+        raise ValueError('Object type "%s" not supported' % type)
 
 
 def query(query, exact, searchcaps):

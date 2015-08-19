@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import collections
 import itertools
 import logging
+import operator
 
 from mopidy import backend
 from mopidy.models import Album, Artist, Image, Ref, SearchResult, Track
@@ -56,26 +57,23 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     )
 
     def browse(self, uri):
-        refs = []
-        dleyna = self.backend.dleyna
         if uri == self.root_directory.uri:
-            for server in dleyna.servers().get():
-                name = server['FriendlyName']
-                uri = uricompose(Extension.ext_name, host=server['UDN'])
-                refs.append(Ref.directory(name=name, uri=uri))
-        else:
-            parts = urisplit(uri)
-            server = dleyna.server(parts.gethost()).get()
-            baseuri = uricompose('dleyna', server['UDN'])
-            path = server['Path'] + parts.getpath()
-            future = dleyna.children(path, filter=BROWSE_FILTER)
-            for obj in future.get():
-                try:
-                    ref = translator.ref(baseuri, obj)
-                except ValueError as e:
-                    logger.warn('Skipping dLeyna browse result: %s', e)
-                else:
-                    refs.append(ref)
+            return self.__browse_root()
+        uriparts = urisplit(uri)
+        dleyna = self.backend.dleyna
+        server = dleyna.server(uriparts.gethost()).get()
+        path = server['Path'] + uriparts.getpath()
+        future = dleyna.children(path, filter=BROWSE_FILTER)
+
+        refs = []
+        baseuri = uricompose('dleyna', server['UDN'])
+        for obj in future.get():
+            try:
+                ref = translator.ref(baseuri, obj)
+            except ValueError as e:
+                logger.debug('Skipping %s: %s', obj['Path'], e)
+            else:
+                refs.append(ref)
         return refs
 
     def get_images(self, uris):
@@ -119,7 +117,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         elif properties['Type'] in ('music', 'audio'):
             return [translator.track(baseuri, properties)]
         else:
-            raise ValueError('Invalid type for %s: %s' % (uri, obj['Type']))
+            logger.error('Invalid object type for %s: %s', uri, obj['Type'])
 
     def refresh(self, uri=None):
         logger.info('Refreshing dLeyna library')
@@ -136,7 +134,6 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             else:
                 futures.append(future)
         results = collections.defaultdict(collections.OrderedDict)
-        # TODO: exception handling in translation?!? baseuri?
         for model in itertools.chain.from_iterable(f.get() for f in futures):
             results[type(model)][model.uri] = model  # merge results w/same uri
         return SearchResult(
@@ -145,6 +142,13 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             artists=results[Artist].values(),
             tracks=results[Track].values()
         )
+
+    def __browse_root(self):
+        refs = []
+        for server in self.backend.dleyna.servers().get():
+            uri = uricompose(Extension.ext_name, host=server['UDN'])
+            refs.append(Ref.directory(name=server['FriendlyName'], uri=uri))
+        return list(sorted(refs, key=operator.attrgetter('name')))
 
     # TODO: refactor (move to client?), configurable chunk size
     def __lookup(self, server, paths, filter=['*'], limit=10):
@@ -167,16 +171,17 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         server = dleyna.server(uriparts.gethost()).get()
         query = translator.query(query, exact, server['SearchCaps'])
         path = server['Path'] + uriparts.getpath()
+        logger.debug('Search %s: %s', path, query)
         future = dleyna.search(path, query, offset, limit or 0, SEARCH_FILTER)
-        baseuri = uricompose(Extension.ext_name, server['UDN'])
 
-        def mapper(objs):
+        def models(objs):
+            baseuri = uricompose(Extension.ext_name, server['UDN'])
             for obj in objs:
                 try:
                     yield translator.model(baseuri, obj)
                 except ValueError as e:
-                    logger.warn('Skipping dLeyna search result: %s', e)
-        return future.apply(mapper)
+                    logger.debug('Skipping %s: %s', obj['Path'], e)
+        return future.apply(models)
 
     def __uriset(self, uris=None):
         uris = set(uris or [self.root_directory.uri])  # filter duplicates
