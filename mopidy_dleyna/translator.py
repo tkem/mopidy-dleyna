@@ -10,9 +10,36 @@ ALBUM_TYPE = 'container.album.musicAlbum'
 
 ARTIST_TYPE = 'container.person.musicArtist'
 
+_QUERYMAP = {
+    'any': lambda caps: (
+        ' or '.join(s + ' {0} "{1}"' for s in caps & {
+            'DisplayName', 'Album', 'Artist', 'Genre', 'Creator'
+        })
+    ),
+    'album': lambda caps: (
+        'Album {0} "{1}"' if 'Album' in caps else None
+    ),
+    'artist': lambda caps: (
+        ' or '.join(s + ' {0} "{1}"' for s in caps & {'Artist', 'Creator'})
+    ),
+    'date': lambda caps: (
+        'Date = "{1}"' if 'Date' in caps else None  # TODO: inexact?
+    ),
+    'genre': lambda caps: (
+        'Genre {0} "{1}"' if 'Genre' in caps else None
+    ),
+    'track_name': lambda caps: (
+        ('DisplayName {0} "{1}" and Type = "music"'
+         if 'DisplayName' in caps and 'Type' in caps else None)
+    ),
+    'track_no': lambda caps: (
+        'TrackNumber = "{1}"' if 'TrackNumber' in caps else None
+    )
+}
+
 
 def _quote(s):
-    return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    return unicode(s).replace('\\', '\\\\').replace('"', '\\"')
 
 
 def _album(baseuri, obj):
@@ -22,7 +49,7 @@ def _album(baseuri, obj):
         baseuri += b'/' + basepath(obj['Parent'])
     name = obj['Album']
     images = [obj['AlbumArtURL']] if 'AlbumArtURL' in obj else None
-    uri = baseuri + b'?' + uriencode('Album = ' + _quote(name))
+    uri = baseuri + b'?' + uriencode('Album = "%s"' % _quote(name))
     return models.Album(images=images, name=name, uri=uri)
 
 
@@ -31,7 +58,7 @@ def _artists(baseuri, obj):
     if 'Parent' in obj:
         baseuri += b'/' + basepath(obj['Parent'])
     for name in filter(None, obj.get('Artists', [obj.get('Creator')])):
-        uri = baseuri + b'?' + uriencode('Artist = ' + _quote(name))
+        uri = baseuri + b'?' + uriencode('Artist = "%s"' % _quote(name))
         artists.append(models.Artist(name=name, uri=uri))
     return artists
 
@@ -49,7 +76,7 @@ def ref(baseuri, obj):
     elif type.startswith('container'):
         return models.Ref.directory(name=name, uri=uri)
     else:
-        raise ValueError('Invalid DLNA model type: %s' % type)
+        raise ValueError('Unsupported object type "%s"', type)
 
 
 def album(baseuri, obj):
@@ -90,4 +117,20 @@ def model(baseuri, obj):
     elif type == ARTIST_TYPE:
         return artist(baseuri, obj)
     else:
-        raise ValueError('Invalid DLNA model type: %s' % type)
+        raise ValueError('Unsupported object type "%s"', type)
+
+
+def query(query, exact, searchcaps):
+    terms = []
+    caps = frozenset(searchcaps)
+    op = '=' if exact else 'contains'
+    for key, values in query.items():
+        try:
+            fmt = _QUERYMAP[key](caps)
+        except KeyError:
+            raise ValueError('Keyword "%s" not supported' % key)
+        if fmt:
+            terms.extend(fmt.format(op, _quote(value)) for value in values)
+        else:
+            raise ValueError('Keyword "%s" not supported by device' % key)
+    return ('(%s)' % ') and ('.join(terms)) or '*'

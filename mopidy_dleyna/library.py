@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
+import itertools
 import logging
 
 from mopidy import backend
@@ -45,43 +46,6 @@ SEARCH_FILTER = [
 ]
 
 LOOKUP_QUERY = 'Type = "music" or Type = "audio"'
-
-QUERY_MAPPING = [{
-    'any': """
-    DisplayName contains {0}
-    or Album contains {0}
-    or Artist contains {0}
-    or Genre contains {0}
-    """,
-    # 'uri',
-    'track_name': 'Type = "music" and DisplayName contains {0}',
-    'album': 'Album contains {0}',
-    'artist': 'Artist contains {0}',
-    # 'composer',
-    # 'performer',
-    # 'albumartist',
-    'genre': 'Genre contains {0}',
-    'track_no': 'TrackNumber = {0}',
-    'date': 'Date contains {0}',
-    # 'comment'
-}, {
-    'any': 'DisplayName = {0} or Album = {0} or Artist = {0} or Genre = {0}',
-    # 'uri',
-    'track_name': 'Type = "music" and DisplayName = {0}',
-    'album': 'Album = {0}',
-    'artist': 'Artist = {0}',
-    # 'composer',
-    # 'performer',
-    # 'albumartist',
-    'genre': 'Genre = {0}',
-    'track_no': 'TrackNumber = {0}',
-    'date': 'Date = {0}',
-    # 'comment'
-}]
-
-
-def _quote(s):
-    return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
@@ -162,42 +126,24 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
-        if query:
-            terms = []
-            mapping = QUERY_MAPPING[exact]
-            for key, values in query.items():
-                if key in mapping:
-                    terms.extend(map(mapping[key].format, map(_quote, values)))
-                else:
-                    return None  # no mapping
-            query = '(%s)' % ') and ('.join(terms)
-        else:
-            query = '*'
-        logger.debug('dLeyna search query: %s', query)
-
+        limit = None  # TODO: config?
         futures = []
-        for uri in uris or [self.root_directory.uri]:
-            if uri == self.root_directory.uri:
-                for server in self.backend.dleyna.servers().get():
-                    uri = uricompose(Extension.ext_name, host=server['UDN'])
-                    futures.append(self.__search(query, uri))
+        for uri in self.__uriset(uris):
+            try:
+                future = self.__search(query or {}, uri, limit, exact=exact)
+            except ValueError as e:
+                logger.warn('Not searching %s: %s', uri, e)
             else:
-                futures.append(self.__search(query, uri))
-
-        results = collections.defaultdict(list)
-        for baseuri, objs in (f.get() for f in futures):
-            for obj in objs:
-                try:
-                    model = translator.model(baseuri, obj)
-                except ValueError:
-                    logger.warn('Skipping dLeyna search result %r', obj)
-                else:
-                    results[type(model)].append(model)
+                futures.append(future)
+        results = collections.defaultdict(collections.OrderedDict)
+        # TODO: exception handling in translation?!? baseuri?
+        for model in itertools.chain.from_iterable(f.get() for f in futures):
+            results[type(model)][model.uri] = model  # merge results w/same uri
         return SearchResult(
             uri=uricompose(Extension.ext_name, query=query),
-            albums=results[Album],
-            artists=results[Artist],
-            tracks=results[Track]
+            albums=results[Album].values(),
+            artists=results[Artist].values(),
+            tracks=results[Track].values()
         )
 
     # TODO: refactor (move to client?), configurable chunk size
@@ -215,11 +161,27 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                 futures.append(dleyna.properties(path).apply(lambda x: [x]))
         return futures
 
-    def __search(self, query, uri):
-        dleyna = self.backend.dleyna
+    def __search(self, query, uri, limit=None, offset=0, exact=False):
         uriparts = urisplit(uri)
+        dleyna = self.backend.dleyna
         server = dleyna.server(uriparts.gethost()).get()
-        baseuri = uricompose(Extension.ext_name, server['UDN'])
+        query = translator.query(query, exact, server['SearchCaps'])
         path = server['Path'] + uriparts.getpath()
-        future = dleyna.search(path, query, filter=SEARCH_FILTER)
-        return future.apply(lambda result: (baseuri, result))
+        future = dleyna.search(path, query, offset, limit or 0, SEARCH_FILTER)
+        baseuri = uricompose(Extension.ext_name, server['UDN'])
+
+        def mapper(objs):
+            for obj in objs:
+                try:
+                    yield translator.model(baseuri, obj)
+                except ValueError as e:
+                    logger.warn('Skipping dLeyna search result: %s', e)
+        return future.apply(mapper)
+
+    def __uriset(self, uris=None):
+        uris = set(uris or [self.root_directory.uri])  # filter duplicates
+        if self.root_directory.uri in uris:
+            for server in self.backend.dleyna.servers().get():
+                uris.add(uricompose(Extension.ext_name, host=server['UDN']))
+            uris.remove(self.root_directory.uri)
+        return uris
