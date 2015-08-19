@@ -1,3 +1,13 @@
+0.5.2 2015-08-18
+----------------
+
+- Move mapping helpers to translator module.
+
+- Add ``mopidy_dleyna.dleyna.__main__``.
+
+- Update `README.rst`.
+
+
 0.5.1 2015-08-14
 ----------------
 
