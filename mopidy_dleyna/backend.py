@@ -43,15 +43,16 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
             self.__stop_dbus(self.__dbus_pid)
 
     def __start_dbus(self):
-        logger.info('Starting private session D-Bus daemon')
+        logger.info('Starting %s D-Bus daemon', Extension.dist_name)
         out = subprocess.check_output(['dbus-launch'], universal_newlines=True)
+        logger.debug('%s D-Bus environment:\n%s', Extension.dist_name, out)
         return dict(line.split('=', 1) for line in out.splitlines())
 
     def __stop_dbus(self, pid):
-        logger.info('Stopping private session D-Bus daemon')
+        logger.info('Stopping %s D-Bus daemon', Extension.dist_name)
         try:
             os.kill(pid, signal.SIGTERM)
         except OSError as e:
             if e.errno != errno.ESRCH:
                 raise
-        logger.debug('Stopped private session D-Bus daemon')
+        logger.debug('Stopped %s D-Bus daemon', Extension.dist_name)

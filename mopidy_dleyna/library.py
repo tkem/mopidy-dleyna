@@ -155,7 +155,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         elif properties['Type'] in ('music', 'audio'):
             return [translator.track(baseuri, properties)]
         else:
-            raise ValueError('Invalid type for %s: %s', uri, obj['Type'])
+            raise ValueError('Invalid type for %s: %s' % (uri, obj['Type']))
 
     def refresh(self, uri=None):
         logger.info('Refreshing dLeyna library')
