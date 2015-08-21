@@ -94,9 +94,11 @@ class dLeynaClient(object):
 
     def __found_server(self, path, notify_handler=lambda path, obj: None):
         def reply_handler(obj):
-            self.__log_server_action('Found', obj)
+            udn = obj['UDN']
             with self.__lock:
-                self.__servers[obj['UDN']] = obj
+                if udn not in self.__servers:
+                    self.__log_server_action('Found', obj)
+                self.__servers[udn] = obj  # always update
             notify_handler(path, obj)
 
         def error_handler(e):

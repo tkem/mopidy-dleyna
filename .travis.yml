@@ -1,5 +1,3 @@
-sudo: false
-
 language: python
 
 python:
@@ -11,6 +9,7 @@ addons:
       - mopidy-stable
     packages:
       - mopidy
+      - python-dbus
 
 env:
   - TOX_ENV=py27
@@ -24,4 +23,3 @@ script:
 
 after_success:
   - "if [ $TOX_ENV == 'py27' ]; then pip install coveralls; coveralls; fi"
-

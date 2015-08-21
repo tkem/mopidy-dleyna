@@ -6,9 +6,9 @@ from setuptools import find_packages, setup
 
 
 def get_version(filename):
-    with open(filename) as fh:
-        metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", fh.read()))
-        return metadata['version']
+    content = open(filename).read()
+    metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", content))
+    return metadata['version']
 
 
 setup(
@@ -18,7 +18,9 @@ setup(
     license='Apache License, Version 2.0',
     author='Thomas Kemmer',
     author_email='tkemmer@computer.org',
-    description='Mopidy extension for playing music from Digital Media Servers',  # noqa
+    description=(
+        'Mopidy extension for playing music from Digital Media Servers'
+    ),
     long_description=open('README.rst').read(),
     packages=find_packages(exclude=['tests', 'tests.*']),
     zip_safe=False,
