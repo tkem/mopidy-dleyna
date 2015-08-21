@@ -35,7 +35,7 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
             env = self.__start_dbus()
             self.__dbus_pid = int(env[DBUS_SESSION_BUS_PID])
             self.dleyna = dLeynaClient(str(env[DBUS_SESSION_BUS_ADDRESS]))
-        self.library = dLeynaLibraryProvider(self)
+        self.library = dLeynaLibraryProvider(config, self)
         self.playback = dLeynaPlaybackProvider(audio, self)
 
     def on_stop(self):

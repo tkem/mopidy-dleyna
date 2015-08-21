@@ -59,6 +59,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         name='Digital Media Servers'
     )
 
+    def __init__(self, config, backend):
+        super(dLeynaLibraryProvider, self).__init__(backend)
+        self.__config = config[Extension.ext_name]
+
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self.__browse_root()
@@ -70,7 +74,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         baseuri = uricompose('dleyna', server['UDN'])
 
         refs = []
-        offset = limit = 500  # TODO: config
+        offset = limit = self.__config['upnp_browse_limit']
         future = dleyna.browse(path, 0, limit, BROWSE_FILTER)
         while future:
             objs = future.get()
@@ -146,11 +150,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
-        limit = None  # TODO: config
         futures = []
         for uri in self.__urifilter(uris):
             try:
-                future = self.__search(query or {}, uri, limit, exact=exact)
+                future = self.__search(query or {}, uri, exact)
             except ValueError as e:
                 logger.warn('Not searching %s: %s', uri, e)
             else:
@@ -173,13 +176,14 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             refs.append(models.Ref.directory(name=name, uri=uri))
         return list(sorted(refs, key=operator.attrgetter('name')))
 
-    def __search(self, query, uri, limit=None, offset=0, exact=False):
+    def __search(self, query, uri, exact=False):
         uriparts = urisplit(uri)
         dleyna = self.backend.dleyna
         server = dleyna.server(uriparts.gethost()).get()
         path = server['Path'] + uriparts.getpath()
         query = translator.query(query, exact, server['SearchCaps'])
-        future = dleyna.search(path, query, offset, limit or 0, SEARCH_FILTER)
+        limit = self.__config['upnp_search_limit']
+        future = dleyna.search(path, query, 0, limit, SEARCH_FILTER)
 
         def models(objs):
             baseuri = uricompose(Extension.ext_name, server['UDN'])

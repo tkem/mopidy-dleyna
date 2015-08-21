@@ -12,6 +12,6 @@ class dLeynaPlaybackProvider(backend.PlaybackProvider):
         dleyna = self.backend.dleyna
         server = dleyna.server(parts.gethost()).get()
         path = server['Path'] + parts.getpath()
-        # TODO: single prop, MEDIA_ITEM_IFACE, compatible resources...
-        future = dleyna.properties(path)
+        # TODO: GetCompatibleResources w/protocol_info
+        future = dleyna.properties(path, dleyna.MEDIA_ITEM_IFACE)
         return future.get()['URLs'][0]

@@ -14,11 +14,12 @@ class Extension(ext.Extension):
     version = __version__
 
     def get_default_config(self):
-        conf_file = os.path.join(os.path.dirname(__file__), 'ext.conf')
-        return config.read(conf_file)
+        return config.read(os.path.join(os.path.dirname(__file__), 'ext.conf'))
 
     def get_config_schema(self):
         schema = super(Extension, self).get_config_schema()
+        schema['upnp_browse_limit'] = config.Integer(minimum=0)
+        schema['upnp_search_limit'] = config.Integer(minimum=0)
         return schema
 
     def setup(self, registry):
@@ -26,7 +27,6 @@ class Extension(ext.Extension):
         registry.add('backend', dLeynaBackend)
 
     def validate_environment(self):
-        # TODO: dbus requirement?
         try:
             import dbus  # noqa
         except ImportError:

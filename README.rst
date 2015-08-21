@@ -27,11 +27,18 @@ Mopidy-dLeyna can be installed using pip_ by running::
 Configuration
 ------------------------------------------------------------------------
 
-Note that configuration settings for this extension are still subject
-to change::
+The following configuration values are provided:
 
-  [dleyna]
-  enabled = true
+- ``dleyna/enabled``: Whether Mopidy-dLeyna should be enabled or not.
+  Defaults to ``true``
+  
+- ``dleyna/upnp_browse_limit``: The maximum number of objects to
+  retrieve per UPnP `Browse` action, or ``0`` to retrieve all objects.
+  Defaults to ``500``.
+    
+- ``dleyna/upnp_search_limit``: The maximum number of objects to
+  retrieve per UPnP `Search` action, or ``0`` to retrieve all objects.
+  Defaults to ``0``.
 
 
 Project resources
@@ -77,6 +84,3 @@ Licensed under the `Apache License, Version 2.0`_.
 .. _Change Log: https://github.com/tkem/mopidy-dleyna/blob/master/CHANGES.rst
 
 .. _Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
-
-
-.. _minidlna: http://sourceforge.net/projects/minidlna/
