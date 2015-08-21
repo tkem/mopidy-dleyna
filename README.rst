@@ -29,13 +29,13 @@ Configuration
 
 The following configuration values are provided:
 
-- ``dleyna/enabled``: Whether Mopidy-dLeyna should be enabled or not.
+- ``dleyna/enabled``: Whether this extension should be enabled or not.
   Defaults to ``true``
-  
+
 - ``dleyna/upnp_browse_limit``: The maximum number of objects to
   retrieve per UPnP `Browse` action, or ``0`` to retrieve all objects.
   Defaults to ``1000``.
-    
+
 - ``dleyna/upnp_search_limit``: The maximum number of objects to
   retrieve per UPnP `Search` action, or ``0`` to retrieve all objects.
   Defaults to ``0``.

@@ -1,4 +1,4 @@
-1.0.0 2015-08-20
+1.0.0 2015-08-21
 ----------------
 
 - Add ``upnp_browse_limit`` config value.
@@ -8,7 +8,7 @@
 - Refactor ``get_images`` implementation.
 
 - Improve debug output.
-  
+
 
 0.5.3 2015-08-19
 ----------------
