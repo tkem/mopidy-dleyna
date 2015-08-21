@@ -5,15 +5,13 @@ import itertools
 import logging
 import operator
 
-from mopidy import backend
-from mopidy.models import Album, Artist, Image, Ref, SearchResult, Track
+from mopidy import backend, models
 
 from uritools import uricompose, urisplit
 
 from . import Extension, translator
 
 logger = logging.getLogger(__name__)
-
 
 BROWSE_FILTER = [
     'DisplayName',
@@ -46,12 +44,12 @@ SEARCH_FILTER = [
     'TypeEx',
 ]
 
-LOOKUP_QUERY = 'Type = "music" or Type = "audio"'
+LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps?
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
 
-    root_directory = Ref.directory(
+    root_directory = models.Ref.directory(
         uri=uricompose(Extension.ext_name),
         name='Digital Media Servers'
     )
@@ -59,21 +57,30 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def browse(self, uri):
         if uri == self.root_directory.uri:
             return self.__browse_root()
+
         uriparts = urisplit(uri)
         dleyna = self.backend.dleyna
         server = dleyna.server(uriparts.gethost()).get()
         path = server['Path'] + uriparts.getpath()
-        future = dleyna.children(path, filter=BROWSE_FILTER)
+        baseuri = uricompose('dleyna', server['UDN'])
 
         refs = []
-        baseuri = uricompose('dleyna', server['UDN'])
-        for obj in future.get():
-            try:
-                ref = translator.ref(baseuri, obj)
-            except ValueError as e:
-                logger.debug('Skipping %s: %s', obj['Path'], e)
+        offset = limit = 500  # TODO: config
+        future = dleyna.browse(path, 0, limit, BROWSE_FILTER)
+        while future:
+            objs = future.get()
+            if limit and len(objs) == limit:
+                future = dleyna.browse(path, offset, limit, BROWSE_FILTER)
             else:
-                refs.append(ref)
+                future = None
+            for obj in objs:
+                try:
+                    ref = translator.ref(baseuri, obj)
+                except ValueError as e:
+                    logger.debug('Skipping %s: %s', obj['Path'], e)
+                else:
+                    refs.append(ref)
+            offset += limit
         return refs
 
     def get_images(self, uris):
@@ -93,7 +100,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         results = {}
         for obj in (obj for future in futures for obj in future.get()):
             try:
-                image = Image(uri=obj['AlbumArtURL'])
+                image = models.Image(uri=obj['AlbumArtURL'])
             except KeyError:
                 logger.debug('Skipping result without image: %s', obj['Path'])
                 continue
@@ -104,11 +111,11 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return results
 
     def lookup(self, uri):
-        dleyna = self.backend.dleyna
         uriparts = urisplit(uri)
+        dleyna = self.backend.dleyna
         server = dleyna.server(uriparts.gethost()).get()
-        baseuri = uricompose(Extension.ext_name, server['UDN'])
         path = server['Path'] + uriparts.getpath()
+        baseuri = uricompose(Extension.ext_name, server['UDN'])
         properties = dleyna.properties(path).get()
 
         if properties['Type'] == 'container':
@@ -124,9 +131,9 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.backend.dleyna.rescan()
 
     def search(self, query=None, uris=None, exact=False):
-        limit = None  # TODO: config?
+        limit = None  # TODO: config
         futures = []
-        for uri in self.__uriset(uris):
+        for uri in self.__urifilter(uris):
             try:
                 future = self.__search(query or {}, uri, limit, exact=exact)
             except ValueError as e:
@@ -136,18 +143,19 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         results = collections.defaultdict(collections.OrderedDict)
         for model in itertools.chain.from_iterable(f.get() for f in futures):
             results[type(model)][model.uri] = model  # merge results w/same uri
-        return SearchResult(
+        return models.SearchResult(
             uri=uricompose(Extension.ext_name, query=query),
-            albums=results[Album].values(),
-            artists=results[Artist].values(),
-            tracks=results[Track].values()
+            albums=results[models.Album].values(),
+            artists=results[models.Artist].values(),
+            tracks=results[models.Track].values()
         )
 
     def __browse_root(self):
         refs = []
         for server in self.backend.dleyna.servers().get():
+            name = server['FriendlyName']  # mandatory for server
             uri = uricompose(Extension.ext_name, host=server['UDN'])
-            refs.append(Ref.directory(name=server['FriendlyName'], uri=uri))
+            refs.append(models.Ref.directory(name=name, uri=uri))
         return list(sorted(refs, key=operator.attrgetter('name')))
 
     # TODO: refactor (move to client?), configurable chunk size
@@ -169,9 +177,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         uriparts = urisplit(uri)
         dleyna = self.backend.dleyna
         server = dleyna.server(uriparts.gethost()).get()
-        query = translator.query(query, exact, server['SearchCaps'])
         path = server['Path'] + uriparts.getpath()
-        logger.debug('Search %s: %s', path, query)
+        query = translator.query(query, exact, server['SearchCaps'])
         future = dleyna.search(path, query, offset, limit or 0, SEARCH_FILTER)
 
         def models(objs):
@@ -183,10 +190,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                     logger.debug('Skipping %s: %s', obj['Path'], e)
         return future.apply(models)
 
-    def __uriset(self, uris=None):
-        uris = set(uris or [self.root_directory.uri])  # filter duplicates
-        if self.root_directory.uri in uris:
+    def __urifilter(self, uris=None):
+        uriset = set(uris or [self.root_directory.uri])
+        if self.root_directory.uri in uriset:
             for server in self.backend.dleyna.servers().get():
-                uris.add(uricompose(Extension.ext_name, host=server['UDN']))
-            uris.remove(self.root_directory.uri)
-        return uris
+                uriset.add(uricompose(Extension.ext_name, host=server['UDN']))
+            uriset.remove(self.root_directory.uri)
+        return iter(uriset)

@@ -50,7 +50,7 @@ class dLeynaClient(object):
         )
         self.__future = self.__get_servers()
 
-    def children(self, path, offset=0, limit=0, filter=['*']):
+    def browse(self, path, offset=0, limit=0, filter=['*']):
         return self.__call_async(
             self.__bus.get_object(SERVER_BUS_NAME, path).ListChildren,
             dbus.UInt32(offset), dbus.UInt32(limit), filter,
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     if not args.path:
         future = client.servers()
     elif args.list:
-        future = client.children(args.path, filter=filter)
+        future = client.browse(args.path, filter=filter)
     elif args.query:
         future = client.search(args.path, args.query, filter=filter)
     else:
