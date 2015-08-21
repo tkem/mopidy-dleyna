@@ -120,6 +120,13 @@ def model(baseuri, obj):
         raise ValueError('Object type "%s" not supported' % type)
 
 
+def images(obj):
+    try:
+        return [models.Image(uri=obj['AlbumArtURL'])]
+    except KeyError:
+        return []
+
+
 def query(query, exact, searchcaps):
     terms = []
     caps = frozenset(searchcaps)

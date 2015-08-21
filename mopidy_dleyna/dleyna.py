@@ -146,16 +146,17 @@ class dLeynaClient(object):
 
     @classmethod
     def __call_async(cls, func, *args, **kwargs):
+        method = getattr(func, '_method_name', '<unknown>')
+        logger.debug('Calling D-Bus method %s%s', method, args)
         future = cls.Future()
-        name = getattr(func, '_method_name', 'method')
         t = time.time()
 
         def reply_handler(value):
-            logger.debug('dLeyna %s reply after %.3fs', name, time.time() - t)
+            logger.debug('%s reply after %.3fs', method, time.time() - t)
             future.set(value)
 
         def error_handler(e):
-            logger.debug('dLeyna %s error after %.3fs', name, time.time() - t)
+            logger.debug('%s error after %.3fs', method, time.time() - t)
             future.set_exception(exc_info=(type(e), e, None))
 
         func(

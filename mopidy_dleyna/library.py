@@ -47,6 +47,11 @@ SEARCH_FILTER = [
 LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps?
 
 
+def _chunks(seq, n):
+    for i in range(0, len(seq), n):
+        yield seq[i:i+n]
+
+
 class dLeynaLibraryProvider(backend.LibraryProvider):
 
     root_directory = models.Ref.directory(
@@ -86,28 +91,38 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def get_images(self, uris):
         dleyna = self.backend.dleyna
         servers = {obj['UDN']: obj for obj in dleyna.servers().get()}
-        pathmap = collections.defaultdict(list)  # udn -> paths
-        urimap = {}  # path -> uri
+        searchpaths = collections.defaultdict(list)  # for Path queries
+        futures = []
+        urimap = {}
+
         for uri in uris:
             parts = urisplit(uri)
-            udn = parts.gethost()
-            path = servers[udn]['Path'] + parts.getpath()
+            try:
+                server = servers[parts.gethost()]
+            except KeyError:
+                raise LookupError('Cannot resolve URI %s' % uri)
+            root = server['Path']
+            path = root + parts.getpath()
+            if 'Path' in server['SearchCaps']:
+                searchpaths[root].append(path)
+            else:
+                futures.append(dleyna.properties(path).apply(lambda x: [x]))
             urimap[path] = uri
-            pathmap[udn].append(path)
-        futures = []
-        for udn, paths in pathmap.items():
-            futures.extend(self.__lookup(servers[udn], paths, IMAGES_FILTER))
+
+        for root, paths in searchpaths.items():
+            # TODO: how to determine max. query size for server? config?
+            for chunk in _chunks(paths, 50):
+                query = ' or '.join('Path = "%s"' % path for path in chunk)
+                futures.append(dleyna.search(root, query, 0, 0, IMAGES_FILTER))
+
         results = {}
-        for obj in (obj for future in futures for obj in future.get()):
+        for obj in itertools.chain.from_iterable(f.get() for f in futures):
             try:
-                image = models.Image(uri=obj['AlbumArtURL'])
+                uri = urimap[obj['Path']]
             except KeyError:
-                logger.debug('Skipping result without image: %s', obj['Path'])
-                continue
-            try:
-                results[urimap[obj['Path']]] = [image]
-            except KeyError:
-                logger.warn('Unexpected dLeyna result path: %s', obj['Path'])
+                logger.error('Unexpected path in image result: %r', obj)
+            else:
+                results[uri] = translator.images(obj)
         return results
 
     def lookup(self, uri):
@@ -157,21 +172,6 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             uri = uricompose(Extension.ext_name, host=server['UDN'])
             refs.append(models.Ref.directory(name=name, uri=uri))
         return list(sorted(refs, key=operator.attrgetter('name')))
-
-    # TODO: refactor (move to client?), configurable chunk size
-    def __lookup(self, server, paths, filter=['*'], limit=10):
-        dleyna = self.backend.dleyna
-        futures = []
-        root = server['Path']
-        if 'Path' in server.get('SearchCaps', []):
-            for n in range(0, len(paths), limit):
-                chunk = paths[n:n+limit]
-                query = ' or '.join('Path = "%s"' % path for path in chunk)
-                futures.append(dleyna.search(root, query, 0, 0, filter))
-        else:
-            for path in paths:
-                futures.append(dleyna.properties(path).apply(lambda x: [x]))
-        return futures
 
     def __search(self, query, uri, limit=None, offset=0, exact=False):
         uriparts = urisplit(uri)
