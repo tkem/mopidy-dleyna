@@ -1,5 +1,2 @@
-[report]
-omit =
-    */pyshared/*
-    */python?.?/*
-    */site-packages/nose/*
+[run]
+source = mopidy_dleyna
