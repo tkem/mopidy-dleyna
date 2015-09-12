@@ -48,7 +48,7 @@ class dLeynaClient(object):
             self.__lost_server, 'LostServer',
             bus_name=SERVER_BUS_NAME
         )
-        self.__future = self.__get_servers()
+        self.__future = self.__get_servers()  # TODO: rename
 
     def browse(self, path, offset=0, limit=0, filter=['*']):
         return self.__call_async(
@@ -65,10 +65,12 @@ class dLeynaClient(object):
         )
 
     def rescan(self):
-        return self.__call_async(
+        future = self.__call_async(
             self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).Rescan,
             dbus_interface=SERVER_MANAGER_IFACE
         )
+        self.__future = self.__get_servers()  # TODO: rename
+        return future
 
     def search(self, path, query, offset=0, limit=0, filter=['*']):
         return self.__call_async(
@@ -123,6 +125,7 @@ class dLeynaClient(object):
         future = self.Future()
 
         def reply_handler(paths):
+            logger.info('Found %d digital media server(s)', len(paths))
             if paths:
                 pending = set(paths)
 
@@ -153,7 +156,7 @@ class dLeynaClient(object):
         future = cls.Future()
         t = time.time()
 
-        def reply_handler(value):
+        def reply_handler(value=None):
             logger.debug('%s reply after %.3fs', method, time.time() - t)
             future.set(value)
 
