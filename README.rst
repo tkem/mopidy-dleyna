@@ -13,7 +13,7 @@ Dependencies
 
 - The ``dleyna-server`` package available in Ubuntu 14.04 and Debian
   "jessie".  For other platforms, please see the dLeyna `installation
-  instructions <https://github.com/01org/dleyna-server>`.
+  instructions <https://github.com/01org/dleyna-server>`_.
 
 
 Installation
