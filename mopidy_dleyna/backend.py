@@ -6,7 +6,7 @@ import os
 import signal
 import subprocess
 
-from mopidy import backend
+from mopidy import backend, exceptions
 
 import pykka
 
@@ -29,12 +29,17 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
 
     def __init__(self, config, audio):
         super(dLeynaBackend, self).__init__()
-        if DBUS_SESSION_BUS_ADDRESS in os.environ:
-            self.dleyna = dLeynaClient()
-        else:
-            env = self.__start_dbus()
-            self.__dbus_pid = int(env[DBUS_SESSION_BUS_PID])
-            self.dleyna = dLeynaClient(str(env[DBUS_SESSION_BUS_ADDRESS]))
+        try:
+            if DBUS_SESSION_BUS_ADDRESS in os.environ:
+                self.dleyna = dLeynaClient()
+            else:
+                env = self.__start_dbus()
+                self.__dbus_pid = int(env[DBUS_SESSION_BUS_PID])
+                self.dleyna = dLeynaClient(str(env[DBUS_SESSION_BUS_ADDRESS]))
+        except Exception as e:
+            logger.error('Error starting %s: %s', Extension.dist_name, e)
+            # TODO: clean way to bail out late?
+            raise exceptions.ExtensionError('Error starting dLeyna client')
         self.library = dLeynaLibraryProvider(config, self)
         self.playback = dLeynaPlaybackProvider(audio, self)
 
