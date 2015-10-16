@@ -1,10 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
-from os.path import basename as basepath  # FIXME: server path?
+from os.path import basename as basepath
 
 from mopidy import models
 
-from uritools import uriencode, urijoin
+from uritools import uriencode
 
 ALBUM_TYPE = 'container.album.musicAlbum'
 
@@ -37,6 +37,17 @@ _QUERYMAP = {
     )
 }
 
+# TODO: handle playlists and 'container.playlistContainer'
+_REFMAP = {
+    'audio': models.Ref.track,
+    'container': models.Ref.directory,
+    'container.genre.musicGenre': models.Ref.directory,
+    'container.storageFolder': models.Ref.directory,
+    'music': models.Ref.track,
+    ALBUM_TYPE: models.Ref.album,
+    ARTIST_TYPE: models.Ref.artist
+}
+
 
 def _quote(s):
     return unicode(s).replace('\\', '\\\\').replace('"', '\\"')
@@ -64,18 +75,12 @@ def _artists(baseuri, obj):
 
 
 def ref(baseuri, obj):
-    uri = urijoin(baseuri, basepath(obj.get('RefPath', obj['Path'])))
     name = obj['DisplayName']
     type = obj.get('TypeEx', obj['Type'])
-    if type == 'music' or type == 'audio':
-        return models.Ref.track(name=name, uri=uri)
-    elif type == ALBUM_TYPE:
-        return models.Ref.album(name=name, uri=uri)
-    elif type == ARTIST_TYPE:
-        return models.Ref.artist(name=name, uri=uri)
-    elif type.startswith('container'):
-        return models.Ref.directory(name=name, uri=uri)
-    else:
+    uri = baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
+    try:
+        return _REFMAP[type](name=name, uri=uri)
+    except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
 
 
@@ -84,14 +89,14 @@ def album(baseuri, obj):
         artists=_artists(baseuri, obj),
         name=obj['DisplayName'],
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
-        uri=urijoin(baseuri, basepath(obj.get('RefPath', obj['Path'])))
+        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
     )
 
 
 def artist(baseuri, obj):
     return models.Artist(
         name=obj['DisplayName'],
-        uri=urijoin(baseuri, basepath(obj.get('RefPath', obj['Path'])))
+        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
     )
 
 
@@ -104,7 +109,7 @@ def track(baseuri, obj):
         length=obj.get('Duration', 0) * 1000 or None,
         name=obj['DisplayName'],
         track_no=obj.get('TrackNumber'),
-        uri=urijoin(baseuri, basepath(obj.get('RefPath', obj['Path'])))
+        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
     )
 
 
