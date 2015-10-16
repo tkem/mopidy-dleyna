@@ -1,3 +1,11 @@
+v1.0.2 (2015-10-16)
+-------------------
+
+- Improve startup error messages.
+
+- Performance improvements.
+
+
 v1.0.1 (2015-09-12)
 -------------------
 
