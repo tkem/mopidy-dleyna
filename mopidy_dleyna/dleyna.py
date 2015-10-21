@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import collections
 import logging
 import threading
 import time
@@ -17,6 +18,119 @@ SERVER_MANAGER_IFACE = 'com.intel.dLeynaServer.Manager'
 logger = logging.getLogger(__name__)
 
 
+class dLeynaFuture(pykka.ThreadingFuture):
+
+    def apply(self, func):
+        # similar to map(), but always works on single value
+        future = self.__class__()
+        future.set_get_hook(lambda timeout: func(self.get(timeout)))
+        return future
+
+    @classmethod
+    def fromdbus(cls, func, *args, **kwargs):
+        method = getattr(func, '_method_name', '<unknown>')
+        logger.debug('Calling D-Bus method %s%s', method, args)
+        future = cls()
+        start = time.time()
+
+        def reply(value=None):
+            logger.debug('%s reply after %.3fs', method, time.time() - start)
+            future.set(value)
+
+        def error(e):
+            logger.debug('%s error after %.3fs', method, time.time() - start)
+            future.set_exception(exc_info=(type(e), e, None))
+
+        func(*args, reply_handler=reply, error_handler=error, **kwargs)
+        return future
+
+    @classmethod
+    def fromvalue(cls, value):
+        future = cls()
+        future.set(value)
+        return future
+
+
+class dLeynaServers(collections.Mapping):
+
+    def __init__(self, bus):
+        self.__bus = bus
+        self.__lock = threading.RLock()
+        self.__servers = {}
+
+        bus.add_signal_receiver(
+            self.__found_server, 'FoundServer',
+            bus_name=SERVER_BUS_NAME
+        )
+        bus.add_signal_receiver(
+            self.__lost_server, 'LostServer',
+            bus_name=SERVER_BUS_NAME
+        )
+        self.__get_servers()
+
+    def __getitem__(self, key):
+        with self.__lock:
+            return self.__servers[key]
+
+    def __iter__(self):
+        with self.__lock:
+            return iter(list(self.__servers))
+
+    def __len__(self):
+        with self.__lock:
+            return len(self.__servers)
+
+    def __add_server(self, obj):
+        with self.__lock:
+            self.__servers[obj['UDN']] = obj
+        self.__log_server_action('Found', obj)
+
+    def __remove_server(self, obj):
+        with self.__lock:
+            del self.__servers[obj['UDN']]
+        self.__log_server_action('Lost', obj)
+
+    def __found_server(self, path):
+        def error_handler(e):
+            logger.warn('Cannot access media server %s: %s', path, e)
+
+        self.__bus.get_object(SERVER_BUS_NAME, path).GetAll(
+            '',  # all interfaces
+            dbus_interface=dbus.PROPERTIES_IFACE,
+            reply_handler=self.__add_server,
+            error_handler=error_handler
+        )
+
+    def __lost_server(self, path):
+        with self.__lock:
+            servers = list(self.__servers.items())
+        for udn, obj in servers:
+            if obj['Path'] == path:
+                return self.__remove_server(obj)
+        logger.info('Lost digital media server %s', path)
+
+    def __get_servers(self):
+        def reply_handler(paths):
+            for path in paths:
+                self.__found_server(path)
+
+        def error_handler(e):
+            logger.error('Cannot retrieve digital media servers: %s', e)
+
+        self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).GetServers(
+            dbus_interface=SERVER_MANAGER_IFACE,
+            reply_handler=reply_handler,
+            error_handler=error_handler
+        )
+
+    @classmethod
+    def __log_server_action(cls, action, obj):
+        logger.info(
+            '%s digital media server %s: %s [%s]',
+            action, obj['Path'], obj['FriendlyName'], obj['UDN']
+        )
+
+
 class dLeynaClient(object):
 
     MEDIA_CONTAINER_IFACE = 'org.gnome.UPnP.MediaContainer2'
@@ -25,159 +139,45 @@ class dLeynaClient(object):
 
     MEDIA_ITEM_IFACE = 'org.gnome.UPnP.MediaItem2'
 
-    class Future(pykka.ThreadingFuture):
-
-        def apply(self, func):
-            # similar to map(), but always works on single value
-            future = self.__class__()
-            future.set_get_hook(lambda timeout: func(self.get(timeout)))
-            return future
-
     def __init__(self, address=None, mainloop=None):
         if address:
             self.__bus = dbus.bus.BusConnection(address, mainloop=mainloop)
         else:
             self.__bus = dbus.SessionBus(mainloop=mainloop)
-        self.__lock = threading.RLock()
-        self.__servers = {}
-        self.__bus.add_signal_receiver(
-            self.__found_server, 'FoundServer',
-            bus_name=SERVER_BUS_NAME
-        )
-        self.__bus.add_signal_receiver(
-            self.__lost_server, 'LostServer',
-            bus_name=SERVER_BUS_NAME
-        )
-        self.__future = self.__get_servers()  # TODO: rename
+        self.__servers = dLeynaServers(self.__bus)
 
     def browse(self, path, offset=0, limit=0, filter=['*']):
-        return self.__call_async(
+        return dLeynaFuture.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, path).ListChildren,
             dbus.UInt32(offset), dbus.UInt32(limit), filter,
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
 
     def properties(self, path, iface=None):
-        return self.__call_async(
+        return dLeynaFuture.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, path).GetAll,
             iface or '',
             dbus_interface=dbus.PROPERTIES_IFACE
         )
 
     def rescan(self):
-        future = self.__call_async(
+        return dLeynaFuture.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).Rescan,
             dbus_interface=SERVER_MANAGER_IFACE
         )
-        self.__future = self.__get_servers()  # TODO: rename
-        return future
 
     def search(self, path, query, offset=0, limit=0, filter=['*']):
-        return self.__call_async(
+        return dLeynaFuture.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, path).SearchObjects,
             query, dbus.UInt32(offset), dbus.UInt32(limit), filter,
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
 
     def server(self, udn):
-        def getter(servers):
-            try:
-                with self.__lock:
-                    return servers[udn]
-            except KeyError:
-                raise LookupError('Media server not found: %s' % udn)
-        return self.__future.apply(getter)
+        return dLeynaFuture.fromvalue(self.__servers[udn])
 
     def servers(self):
-        def values(servers):
-            with self.__lock:
-                return list(servers.values())
-        return self.__future.apply(values)
-
-    def __found_server(self, path, notify_handler=lambda path, obj: None):
-        def reply_handler(obj):
-            udn = obj['UDN']
-            with self.__lock:
-                if udn not in self.__servers:
-                    self.__log_server_action('Found', obj)
-                self.__servers[udn] = obj  # always update
-            notify_handler(path, obj)
-
-        def error_handler(e):
-            logger.warn('Cannot access media server %s: %s', path, e)
-            notify_handler(path, e)
-
-        self.__bus.get_object(SERVER_BUS_NAME, path).GetAll(
-            '',  # all interfaces
-            dbus_interface=dbus.PROPERTIES_IFACE,
-            reply_handler=reply_handler,
-            error_handler=error_handler
-        )
-
-    def __lost_server(self, path):
-        with self.__lock:
-            for udn, obj in list(self.__servers.items()):
-                if obj['Path'] == path:
-                    self.__log_server_action('Lost', obj)
-                    del self.__servers[udn]
-
-    def __get_servers(self):
-        future = self.Future()
-
-        def reply_handler(paths):
-            logger.info('Found %d digital media server(s)', len(paths))
-            if paths:
-                pending = set(paths)
-
-                def pending_handler(path, obj):
-                    pending.remove(path)
-                    if not pending:
-                        future.set(self.__servers)
-                for path in paths:
-                    self.__found_server(path, pending_handler)
-            else:
-                future.set(self.__servers)
-
-        def error_handler(e):
-            logger.error('Cannot retrieve media servers: %s', e)
-            future.set(self.__servers)
-
-        self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).GetServers(
-            dbus_interface=SERVER_MANAGER_IFACE,
-            reply_handler=reply_handler,
-            error_handler=error_handler
-        )
-        return future
-
-    @classmethod
-    def __call_async(cls, func, *args, **kwargs):
-        method = getattr(func, '_method_name', '<unknown>')
-        logger.debug('Calling D-Bus method %s%s', method, args)
-        future = cls.Future()
-        t = time.time()
-
-        def reply_handler(value=None):
-            logger.debug('%s reply after %.3fs', method, time.time() - t)
-            future.set(value)
-
-        def error_handler(e):
-            logger.debug('%s error after %.3fs', method, time.time() - t)
-            future.set_exception(exc_info=(type(e), e, None))
-
-        func(
-            *args,
-            reply_handler=reply_handler,
-            error_handler=error_handler,
-            **kwargs
-        )
-        return future
-
-    @classmethod
-    def __log_server_action(cls, action, obj):
-        logger.info(
-            '%s media server %s: %s [%s]',
-            action, obj['Path'], obj['FriendlyName'], obj['UDN']
-        )
+        return dLeynaFuture.fromvalue(self.__servers.values())
 
 if __name__ == '__main__':
     import argparse
