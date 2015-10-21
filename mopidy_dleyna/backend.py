@@ -11,7 +11,7 @@ from mopidy import backend, exceptions
 import pykka
 
 from . import Extension
-from .dleyna import dLeynaClient
+from .client import dLeynaClient
 from .library import dLeynaLibraryProvider
 from .playback import dLeynaPlaybackProvider
 

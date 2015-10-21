@@ -1,14 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
-from os.path import basename as basepath
-
 from mopidy import models
-
-from uritools import uriencode
 
 ALBUM_TYPE = 'container.album.musicAlbum'
 
 ARTIST_TYPE = 'container.person.musicArtist'
+
+_PATH_PREFIX = '/com/intel/dLeynaServer/server/'
 
 _QUERYMAP = {
     'any': lambda caps: (
@@ -53,74 +51,64 @@ def _quote(s):
     return unicode(s).replace('\\', '\\\\').replace('"', '\\"')
 
 
-def _album(baseuri, obj):
+def _album(obj):
     if 'Album' not in obj:
         return None
-    if 'Parent' in obj:
-        baseuri += b'/' + basepath(obj['Parent'])
     name = obj['Album']
     images = [obj['AlbumArtURL']] if 'AlbumArtURL' in obj else None
-    uri = baseuri + b'?' + uriencode('Album = "%s"' % _quote(name))
-    return models.Album(images=images, name=name, uri=uri)
+    return models.Album(images=images, name=name, uri=None)
 
 
-def _artists(baseuri, obj):
+def _artists(obj):
     artists = []
-    if 'Parent' in obj:
-        baseuri += b'/' + basepath(obj['Parent'])
     for name in filter(None, obj.get('Artists', [obj.get('Creator')])):
-        uri = baseuri + b'?' + uriencode('Artist = "%s"' % _quote(name))
-        artists.append(models.Artist(name=name, uri=uri))
+        artists.append(models.Artist(name=name, uri=None))
     return artists
 
 
-def ref(baseuri, obj):
+def ref(obj):
     name = obj['DisplayName']
     type = obj.get('TypeEx', obj['Type'])
-    uri = baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
     try:
-        return _REFMAP[type](name=name, uri=uri)
+        return _REFMAP[type](name=name, uri=obj['URI'])
     except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
 
 
-def album(baseuri, obj):
+def album(obj):
     return models.Album(
-        artists=_artists(baseuri, obj),
+        artists=_artists(obj),
         name=obj['DisplayName'],
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
-        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
+        uri=obj['URI']
     )
 
 
-def artist(baseuri, obj):
-    return models.Artist(
-        name=obj['DisplayName'],
-        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
-    )
+def artist(obj):
+    return models.Artist(name=obj['DisplayName'], uri=obj['URI'])
 
 
-def track(baseuri, obj):
+def track(obj):
     return models.Track(
-        album=_album(baseuri, obj),
-        artists=_artists(baseuri, obj),
+        album=_album(obj),
+        artists=_artists(obj),
         date=obj.get('Date'),
         genre=obj.get('Genre'),
         length=obj.get('Duration', 0) * 1000 or None,
         name=obj['DisplayName'],
         track_no=obj.get('TrackNumber'),
-        uri=baseuri + b'/' + basepath(obj.get('RefPath', obj['Path']))
+        uri=obj['URI']
     )
 
 
-def model(baseuri, obj):
+def model(obj):
     type = obj.get('TypeEx', obj['Type'])
     if type == 'music' or type == 'audio':
-        return track(baseuri, obj)
+        return track(obj)
     elif type == ALBUM_TYPE:
-        return album(baseuri, obj)
+        return album(obj)
     elif type == ARTIST_TYPE:
-        return artist(baseuri, obj)
+        return artist(obj)
     else:
         raise ValueError('Object type "%s" not supported' % type)
 
@@ -146,3 +134,24 @@ def query(query, exact, searchcaps):
         else:
             raise ValueError('Keyword "%s" not supported by device' % key)
     return ('(%s)' % ') and ('.join(terms)) or '*'
+
+
+def urifilter(fields):
+    if 'URI' in fields:
+        objfilter = fields[:]
+        objfilter.remove('URI')
+        objfilter.append('Path')
+        objfilter.append('RefPath')
+        return objfilter
+    else:
+        return fields
+
+
+def urimapper(baseuri):
+    def mapper(obj, index=len(_PATH_PREFIX)):
+        objpath = obj.get('RefPath', obj['Path'])
+        assert objpath.startswith(_PATH_PREFIX)
+        _, sep, relpath = objpath[index:].partition('/')
+        obj['URI'] = baseuri + sep + relpath
+        return obj
+    return mapper

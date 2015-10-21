@@ -9,6 +9,10 @@ import dbus
 
 import pykka
 
+import uritools
+
+from . import translator
+
 SERVER_BUS_NAME = 'com.intel.dleyna-server'
 
 SERVER_ROOT_PATH = '/com/intel/dLeynaServer'
@@ -19,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 class dLeynaFuture(pykka.ThreadingFuture):
-
     def apply(self, func):
         # similar to map(), but always works on single value
         future = self.__class__()
@@ -81,9 +84,12 @@ class dLeynaServers(collections.Mapping):
             return len(self.__servers)
 
     def __add_server(self, obj):
+        udn = obj['UDN']
+        obj['URI'] = uritools.uricompose('dleyna', udn)
+        if udn not in self:
+            self.__log_server_action('Found', obj)
         with self.__lock:
-            self.__servers[obj['UDN']] = obj
-        self.__log_server_action('Found', obj)
+            self.__servers[udn] = obj
 
     def __remove_server(self, obj):
         with self.__lock:
@@ -126,8 +132,8 @@ class dLeynaServers(collections.Mapping):
     @classmethod
     def __log_server_action(cls, action, obj):
         logger.info(
-            '%s digital media server %s: %s [%s]',
-            action, obj['Path'], obj['FriendlyName'], obj['UDN']
+            '%s digital media server %s [%s]',
+            action, obj['FriendlyName'], obj['UDN']
         )
 
 
@@ -139,6 +145,8 @@ class dLeynaClient(object):
 
     MEDIA_ITEM_IFACE = 'org.gnome.UPnP.MediaItem2'
 
+    MEDIA_OBJECT_IFACE = 'org.gnome.MediaObject2'
+
     def __init__(self, address=None, mainloop=None):
         if address:
             self.__bus = dbus.bus.BusConnection(address, mainloop=mainloop)
@@ -146,19 +154,30 @@ class dLeynaClient(object):
             self.__bus = dbus.SessionBus(mainloop=mainloop)
         self.__servers = dLeynaServers(self.__bus)
 
-    def browse(self, path, offset=0, limit=0, filter=['*']):
-        return dLeynaFuture.fromdbus(
-            self.__bus.get_object(SERVER_BUS_NAME, path).ListChildren,
-            dbus.UInt32(offset), dbus.UInt32(limit), filter,
+    def browse(self, uri, offset=0, limit=0, filter=['*']):
+        baseuri, objpath = self.__parseuri(uri)
+        future = dLeynaFuture.fromdbus(
+            self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildren,
+            dbus.UInt32(offset), dbus.UInt32(limit),
+            translator.urifilter(filter),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
+        if baseuri and (filter == ['*'] or 'URI' in filter):
+            return future.map(translator.urimapper(baseuri))
+        else:
+            return future
 
-    def properties(self, path, iface=None):
-        return dLeynaFuture.fromdbus(
-            self.__bus.get_object(SERVER_BUS_NAME, path).GetAll,
+    def properties(self, uri, iface=None):
+        baseuri, objpath = self.__parseuri(uri)
+        future = dLeynaFuture.fromdbus(
+            self.__bus.get_object(SERVER_BUS_NAME, objpath).GetAll,
             iface or '',
             dbus_interface=dbus.PROPERTIES_IFACE
         )
+        if baseuri and (not iface or iface == self.MEDIA_OBJECT_IFACE):
+            return future.apply(translator.urimapper(baseuri))
+        else:
+            return future
 
     def rescan(self):
         return dLeynaFuture.fromdbus(
@@ -166,18 +185,37 @@ class dLeynaClient(object):
             dbus_interface=SERVER_MANAGER_IFACE
         )
 
-    def search(self, path, query, offset=0, limit=0, filter=['*']):
-        return dLeynaFuture.fromdbus(
-            self.__bus.get_object(SERVER_BUS_NAME, path).SearchObjects,
-            query, dbus.UInt32(offset), dbus.UInt32(limit), filter,
+    def search(self, uri, query, offset=0, limit=0, filter=['*']):
+        baseuri, objpath = self.__parseuri(uri)
+        future = dLeynaFuture.fromdbus(
+            self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjects,
+            query, dbus.UInt32(offset), dbus.UInt32(limit),
+            translator.urifilter(filter),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
+        if baseuri and (filter == ['*'] or 'URI' in filter):
+            return future.map(translator.urimapper(baseuri))
+        else:
+            return future
 
-    def server(self, udn):
+    def server(self, uri):
+        udn = uritools.urisplit(uri).gethost()
         return dLeynaFuture.fromvalue(self.__servers[udn])
 
     def servers(self):
         return dLeynaFuture.fromvalue(self.__servers.values())
+
+    def __parseuri(self, uri):
+        parts = uritools.urisplit(uri)
+        if parts.authority:
+            try:
+                server = self.__servers[parts.gethost()]
+            except KeyError:
+                raise LookupError('Cannot resolve %s' % uri)
+            return server['URI'], server['Path'] + parts.path
+        else:
+            return None, uri
+
 
 if __name__ == '__main__':
     import argparse
@@ -188,26 +226,29 @@ if __name__ == '__main__':
     import gobject
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('path', nargs='?')
+    parser.add_argument('uri', nargs='?')
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-f', '--filter', default='*')
+    parser.add_argument('-f', '--filter', default=['*'], nargs='*')
     parser.add_argument('-i', '--indent', type=int, default=2)
     parser.add_argument('-l', '--list', action='store_true')
     parser.add_argument('-q', '--query')
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.ERROR)
-    client = dLeynaClient(mainloop=dbus.mainloop.glib.DBusGMainLoop())
-    filter = args.filter.split(',')
 
-    if not args.path:
+    client = dLeynaClient(mainloop=dbus.mainloop.glib.DBusGMainLoop())
+    # FIXME: wait for servers
+    for i in range(0, 10000):
+        gobject.MainLoop().get_context().iteration(True)
+
+    if not args.uri:
         future = client.servers()
     elif args.list:
-        future = client.browse(args.path, filter=filter)
+        future = client.browse(args.uri, filter=args.filter)
     elif args.query:
-        future = client.search(args.path, args.query, filter=filter)
+        future = client.search(args.uri, args.query, filter=args.filter)
     else:
-        future = client.properties(args.path)
+        future = client.properties(args.uri)
 
     while True:
         try:
