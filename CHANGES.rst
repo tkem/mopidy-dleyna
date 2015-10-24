@@ -1,3 +1,11 @@
+v1.0.3 (2015-10-24)
+-------------------
+
+- Refactor server handling.
+
+- Handle persistent URIs in ``dLeynaClient``.
+
+
 v1.0.2 (2015-10-16)
 -------------------
 
