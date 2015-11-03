@@ -71,7 +71,8 @@ class dLeynaServers(collections.Mapping):
         )
         self.__get_servers()
 
-    def __getitem__(self, key):
+    def __getitem__(self, udn):
+        key = udn.lower()
         with self.__lock:
             return self.__servers[key]
 
@@ -86,14 +87,16 @@ class dLeynaServers(collections.Mapping):
     def __add_server(self, obj):
         udn = obj['UDN']
         obj['URI'] = uritools.uricompose('dleyna', udn)
-        if udn not in self:
+        key = udn.lower()
+        if key not in self:
             self.__log_server_action('Found', obj)
         with self.__lock:
-            self.__servers[udn] = obj
+            self.__servers[key] = obj
 
     def __remove_server(self, obj):
+        key = obj['UDN'].lower()
         with self.__lock:
-            del self.__servers[obj['UDN']]
+            del self.__servers[key]
         self.__log_server_action('Lost', obj)
 
     def __found_server(self, path):
@@ -109,8 +112,8 @@ class dLeynaServers(collections.Mapping):
 
     def __lost_server(self, path):
         with self.__lock:
-            servers = list(self.__servers.items())
-        for udn, obj in servers:
+            servers = list(self.__servers.values())
+        for obj in servers:
             if obj['Path'] == path:
                 return self.__remove_server(obj)
         logger.info('Lost digital media server %s', path)
