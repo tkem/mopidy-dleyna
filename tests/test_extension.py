@@ -14,6 +14,8 @@ def test_get_config_schema():
     ext = Extension()
     schema = ext.get_config_schema()
     assert 'enabled' in schema
+    assert 'upnp_browse_limit' in schema
+    assert 'upnp_search_limit' in schema
 
 
 # TODO Write more tests

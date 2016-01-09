@@ -41,6 +41,12 @@ SEARCH_FILTER = [
     'URI'
 ]
 
+BROWSE_ORDER = {
+    models.Ref.ALBUM: ['+TrackNumber', '+DisplayName'],
+    models.Ref.ARTIST: ['+TypeEx', '+DisplayName'],
+    models.Ref.DIRECTORY: ['+TypeEx', '+DisplayName'],
+}
+
 LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps
 
 
@@ -66,9 +72,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         name='Digital Media Servers'
     )
 
-    def __init__(self, config, backend):
+    def __init__(self, backend, config):
         super(dLeynaLibraryProvider, self).__init__(backend)
-        self.__config = config[Extension.ext_name]
+        self.__upnp_search_limit = config['upnp_search_limit']
+        self.__upnp_browse_limit = config['upnp_browse_limit']
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
@@ -131,7 +138,6 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def search(self, query=None, uris=None, exact=False):
         dleyna = self.backend.dleyna
-        limit = self.__config['upnp_search_limit']
         # sanitize uris
         uris = set(uris or [self.root_directory.uri])
         if self.root_directory.uri in uris:
@@ -141,7 +147,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         futures = []
         for uri in uris:
             try:
-                future = self.__search(uri, query or {}, 0, limit, exact)
+                limit = self.__upnp_search_limit
+                future = self.__search(uri, query or {}, exact, 0, limit)
             except ValueError as e:
                 logger.warn('Not searching %s: %s', uri, e)
             else:
@@ -157,41 +164,56 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             tracks=results[models.Track].values()
         )
 
-    def __browse_root(self):
+    def __browse_root(self, key=operator.attrgetter('name')):
         refs = []
         for server in self.backend.dleyna.servers().get():
             name = server.get('FriendlyName', server['DisplayName'])
             refs.append(models.Ref.directory(name=name, uri=server['URI']))
-        return list(sorted(refs, key=operator.attrgetter('name')))
+        return list(sorted(refs, key=key))
 
     def __browse_container(self, uri):
+        # determine sort order
+        dleyna = self.backend.dleyna
+        obj = dleyna.properties(uri, iface=dleyna.MEDIA_OBJECT_IFACE).get()
+        order = self.__sortorder(uri, BROWSE_ORDER[translator.ref(obj).type])
+        # start browsing
         refs = []
         offset = 0
-        limit = self.__config['upnp_browse_limit']
-        future = self.__browse(uri, offset, limit)
+        limit = self.__upnp_browse_limit
+        future = self.__browse(uri, offset, limit, order)
         while future:
             result, more = future.get()
             if more:
                 offset += limit
-                future = self.__browse(uri, offset, limit)
+                future = self.__browse(uri, offset, limit, order)
             else:
                 future = None
             refs.extend(result)
         return refs
 
-    def __browse(self, uri, offset=0, limit=0,
+    def __browse(self, uri, offset=0, limit=0, order=[],
                  mapper=_objmapper(translator.ref)):
         dleyna = self.backend.dleyna
-        future = dleyna.browse(uri, offset, limit, BROWSE_FILTER)
+        future = dleyna.browse(uri, offset, limit, BROWSE_FILTER, order)
         return future.apply(
             lambda objs: (mapper(objs), limit and len(objs) == limit)
         )
 
-    def __search(self, uri, query, offset=0, limit=0, exact=False,
+    def __search(self, uri, query, exact=False, offset=0, limit=0, order=[],
                  mapper=_objmapper(translator.model)):
         dleyna = self.backend.dleyna
-        server = dleyna.server(uri).get()
-        query = translator.query(query, exact, server['SearchCaps'])
-        future = dleyna.search(uri, query, offset, limit, SEARCH_FILTER)
+        searchcaps = dleyna.server(uri).get().get('SearchCaps', [])
+        logger.debug('SearchCaps for %s: %r', uri, searchcaps)
+        query = translator.query(query, exact, searchcaps)
+        future = dleyna.search(uri, query, offset, limit, SEARCH_FILTER, order)
         # TODO: return "more" flag as in browse
         return future.apply(mapper)
+
+    def __sortorder(self, uri, order):
+        dleyna = self.backend.dleyna
+        sortcaps = frozenset(dleyna.server(uri).get().get('SortCaps', []))
+        logger.debug('SortCaps for %s: %r', uri, sortcaps)
+        if '*' in sortcaps:
+            return order
+        else:
+            return list(filter(lambda f: f[1:] in sortcaps, order))

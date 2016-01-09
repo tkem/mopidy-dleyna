@@ -36,9 +36,9 @@ class dLeynaFuture(pykka.ThreadingFuture):
         future = cls()
         start = time.time()
 
-        def reply(value=None):
+        def reply(*args):
             logger.debug('%s reply after %.3fs', method, time.time() - start)
-            future.set(value)
+            future.set(args[0] if len(args) == 1 else args)
 
         def error(e):
             logger.debug('%s error after %.3fs', method, time.time() - start)
@@ -148,7 +148,7 @@ class dLeynaClient(object):
 
     MEDIA_ITEM_IFACE = 'org.gnome.UPnP.MediaItem2'
 
-    MEDIA_OBJECT_IFACE = 'org.gnome.MediaObject2'
+    MEDIA_OBJECT_IFACE = 'org.gnome.UPnP.MediaObject2'
 
     def __init__(self, address=None, mainloop=None):
         if address:
@@ -157,12 +157,12 @@ class dLeynaClient(object):
             self.__bus = dbus.SessionBus(mainloop=mainloop)
         self.__servers = dLeynaServers(self.__bus)
 
-    def browse(self, uri, offset=0, limit=0, filter=['*']):
+    def browse(self, uri, offset=0, limit=0, filter=['*'], order=[]):
         baseuri, objpath = self.__parseuri(uri)
         future = dLeynaFuture.fromdbus(
-            self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildren,
+            self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildrenEx,
             dbus.UInt32(offset), dbus.UInt32(limit),
-            translator.urifilter(filter),
+            translator.urifilter(filter), ','.join(order),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
         if baseuri and (filter == ['*'] or 'URI' in filter):
@@ -188,18 +188,19 @@ class dLeynaClient(object):
             dbus_interface=SERVER_MANAGER_IFACE
         )
 
-    def search(self, uri, query, offset=0, limit=0, filter=['*']):
+    def search(self, uri, query, offset=0, limit=0, filter=['*'], order=[]):
         baseuri, objpath = self.__parseuri(uri)
         future = dLeynaFuture.fromdbus(
-            self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjects,
+            self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjectsEx,
             query, dbus.UInt32(offset), dbus.UInt32(limit),
-            translator.urifilter(filter),
+            translator.urifilter(filter), ','.join(order),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
         if baseuri and (filter == ['*'] or 'URI' in filter):
-            return future.map(translator.urimapper(baseuri))
+            mapper = translator.urimapper(baseuri)
+            return future.apply(lambda res: map(mapper, res[0]))
         else:
-            return future
+            return future.apply(lambda res: res[0])
 
     def server(self, uri):
         udn = uritools.urisplit(uri).gethost()
@@ -234,7 +235,8 @@ if __name__ == '__main__':
     parser.add_argument('uri', nargs='?')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-f', '--filter', default=['*'], nargs='*')
-    parser.add_argument('-i', '--indent', type=int, default=2)
+    # parser.add_argument('-i', '--indent', type=int, default=2)
+    parser.add_argument('-i', '--iface')
     parser.add_argument('-l', '--list', action='store_true')
     parser.add_argument('-q', '--query')
 
@@ -253,7 +255,7 @@ if __name__ == '__main__':
     elif args.query:
         future = client.search(args.uri, args.query, filter=args.filter)
     else:
-        future = client.properties(args.uri)
+        future = client.properties(args.uri, iface=args.iface)
 
     while True:
         try:
@@ -263,5 +265,5 @@ if __name__ == '__main__':
         else:
             break
 
-    json.dump(future.get(), sys.stdout, default=vars, indent=args.indent)
+    json.dump(future.get(), sys.stdout, default=vars, indent=2)
     sys.stdout.write('\n')

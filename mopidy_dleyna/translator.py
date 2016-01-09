@@ -68,10 +68,9 @@ def _artists(obj):
 
 
 def ref(obj):
-    name = obj['DisplayName']
     type = obj.get('TypeEx', obj['Type'])
     try:
-        return _REFMAP[type](name=name, uri=obj['URI'])
+        return _REFMAP[type](name=obj['DisplayName'], uri=obj['URI'])
     except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
 

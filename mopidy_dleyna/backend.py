@@ -40,7 +40,7 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
             logger.error('Error starting %s: %s', Extension.dist_name, e)
             # TODO: clean way to bail out late?
             raise exceptions.ExtensionError('Error starting dLeyna client')
-        self.library = dLeynaLibraryProvider(config, self)
+        self.library = dLeynaLibraryProvider(self, config[Extension.ext_name])
         self.playback = dLeynaPlaybackProvider(audio, self)
 
     def on_stop(self):
