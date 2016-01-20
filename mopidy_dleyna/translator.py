@@ -52,11 +52,12 @@ def _quote(s):
 
 
 def _album(obj):
-    if 'Album' not in obj:
+    try:
+        name = obj['Album']
+    except KeyError:
         return None
-    name = obj['Album']
-    images = [obj['AlbumArtURL']] if 'AlbumArtURL' in obj else None
-    return models.Album(images=images, name=name, uri=None)
+    else:
+        return models.Album(name=name, uri=None)
 
 
 def _artists(obj):
