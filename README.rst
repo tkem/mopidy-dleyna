@@ -9,7 +9,7 @@ Dependencies
 ------------------------------------------------------------------------
 
 - D-Bus Python bindings, such as the package ``python-dbus`` in
-  Ubuntu/Debian.
+  Debian/Ubuntu/Raspbian.
 
 - The ``dleyna-server`` package available in Ubuntu 14.04 and Debian
   "jessie".  For other platforms, please see the dLeyna `installation
@@ -19,7 +19,13 @@ Dependencies
 Installation
 ------------------------------------------------------------------------
 
-Mopidy-dLeyna can be installed using pip_ by running::
+Debian/Ubuntu/Raspbian: Install the ``mopidy-dleyna`` package from
+`apt.mopidy.com <http://apt.mopidy.com/>`_::
+
+  sudo apt-get install mopidy-dleyna
+
+Otherwise, install the dependencies listed above, and then install the
+package from PyPI_::
 
   pip install Mopidy-dLeyna
 
@@ -77,8 +83,7 @@ Licensed under the `Apache License, Version 2.0`_.
 .. _DLNA: http://www.dlna.org/
 .. _dLeyna: http://01.org/dleyna
 
-.. _pip: https://pip.pypa.io/en/latest/
-
+.. _PyPI: https://pypi.python.org/pypi/Mopidy-dLeyna/
 .. _Issue Tracker: https://github.com/tkem/mopidy-dleyna/issues/
 .. _Source Code: https://github.com/tkem/mopidy-dleyna/
 .. _Change Log: https://github.com/tkem/mopidy-dleyna/blob/master/CHANGES.rst
