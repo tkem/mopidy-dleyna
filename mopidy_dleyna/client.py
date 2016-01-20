@@ -211,11 +211,13 @@ class dLeynaClient(object):
     def __parseuri(self, uri):
         parts = uritools.urisplit(uri)
         if parts.authority:
+            udn = parts.gethost()
             try:
-                server = self.__servers[parts.gethost()]
+                server = self.__servers[udn]
             except KeyError:
-                raise LookupError('Cannot resolve %s' % uri)
-            return server['URI'], server['Path'] + parts.path
+                raise LookupError('Unknown media server UDN %s' % udn)
+            else:
+                return server['URI'], server['Path'] + parts.path
         else:
             return None, uri
 
