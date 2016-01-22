@@ -1,3 +1,15 @@
+v1.0.5 (2016-01-22)
+-------------------
+
+- Specify sort order when browsing.
+
+- Add ``apt.mopidy.com`` to installation options.
+
+- Remove ``Album.images`` property (deprecated in Mopidy v1.2).
+
+- Handle exceptions in ``dLeynaPlaybackProvider``.
+
+
 v1.0.4 (2015-11-03)
 -------------------
 
