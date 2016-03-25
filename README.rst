@@ -11,6 +11,9 @@ Dependencies
 - D-Bus Python bindings, such as the package ``python-dbus`` in
   Debian/Ubuntu/Raspbian.
 
+- The ``dbus-launch`` command, available for example in the ``dbus-x11``
+  package on Debian and Ubuntu.
+  
 - The ``dleyna-server`` package available in Ubuntu 14.04 and Debian
   "jessie".  For other platforms, please see the dLeyna `installation
   instructions <https://github.com/01org/dleyna-server>`_.
