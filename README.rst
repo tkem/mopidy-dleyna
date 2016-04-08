@@ -4,53 +4,16 @@ Mopidy-dLeyna
 Mopidy-dLeyna is a Mopidy_ extension that lets you play music from
 DLNA_ Digital Media Servers using the dLeyna_ D-Bus interface.
 
+This extension lets you browse, search, and stream music from your
+NAS, PC, or any other device running a UPnP/DLNA compliant media
+server.  Compatible devices are discovered automatically on your local
+network, so there is no configuration needed.
 
-Dependencies
-------------------------------------------------------------------------
-
-- D-Bus Python bindings, such as the package ``python-dbus`` in
-  Debian/Ubuntu/Raspbian.
-
-- The ``dbus-launch`` command, available for example in the ``dbus-x11``
-  package on Debian and Ubuntu.
-  
-- The ``dleyna-server`` package available in Ubuntu 14.04 and Debian
-  "jessie".  For other platforms, please see the dLeyna `installation
-  instructions <https://github.com/01org/dleyna-server>`_.
+For more information, please see Mopidy-dLeyna's online
+documentation_.
 
 
-Installation
-------------------------------------------------------------------------
-
-Debian/Ubuntu/Raspbian: Install the ``mopidy-dleyna`` package from
-`apt.mopidy.com <http://apt.mopidy.com/>`_::
-
-  sudo apt-get install mopidy-dleyna
-
-Otherwise, install the dependencies listed above, and then install the
-package from PyPI_::
-
-  pip install Mopidy-dLeyna
-
-
-Configuration
-------------------------------------------------------------------------
-
-The following configuration values are provided:
-
-- ``dleyna/enabled``: Whether this extension should be enabled or not.
-  Defaults to ``true``
-
-- ``dleyna/upnp_browse_limit``: The maximum number of objects to
-  retrieve per UPnP `Browse` action, or ``0`` to retrieve all objects.
-  Defaults to ``1000``.
-
-- ``dleyna/upnp_search_limit``: The maximum number of objects to
-  retrieve per UPnP `Search` action, or ``0`` to retrieve all objects.
-  Defaults to ``0``.
-
-
-Project resources
+Project Resources
 ------------------------------------------------------------------------
 
 .. image:: https://img.shields.io/pypi/v/Mopidy-dLeyna.svg?style=flat
@@ -69,6 +32,10 @@ Project resources
    :target: https://coveralls.io/r/tkem/mopidy-dleyna?branch=master
    :alt: Test coverage
 
+.. image:: https://readthedocs.org/projects/mopidy-dleyna/badge/?version=latest&style=flat
+   :target: http://mopidy-dleyna.readthedocs.org/en/latest/
+   :alt: Documentation Status
+
 - `Issue Tracker`_
 - `Source Code`_
 - `Change Log`_
@@ -86,7 +53,7 @@ Licensed under the `Apache License, Version 2.0`_.
 .. _DLNA: http://www.dlna.org/
 .. _dLeyna: http://01.org/dleyna
 
-.. _PyPI: https://pypi.python.org/pypi/Mopidy-dLeyna/
+.. _Documentation: http://mopidy-dleyna.readthedocs.org/en/latest/
 .. _Issue Tracker: https://github.com/tkem/mopidy-dleyna/issues/
 .. _Source Code: https://github.com/tkem/mopidy-dleyna/
 .. _Change Log: https://github.com/tkem/mopidy-dleyna/blob/master/CHANGES.rst
