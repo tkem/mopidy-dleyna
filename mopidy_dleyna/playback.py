@@ -10,12 +10,11 @@ logger = logging.getLogger(__name__)
 class dLeynaPlaybackProvider(backend.PlaybackProvider):
 
     def translate_uri(self, uri):
-        dleyna = self.backend.dleyna
+        # TODO: GetCompatibleResources w/protocol_info
+        client = self.backend.client
         try:
-            obj = dleyna.properties(uri, dleyna.MEDIA_ITEM_IFACE).get()
+            obj = client.properties(uri, client.MEDIA_ITEM_IFACE).get()
         except Exception as e:
             logger.error('Error translating %s: %s', uri, e)
-            return None
         else:
-            # TODO: GetCompatibleResources w/protocol_info
             return obj['URLs'][0]

@@ -7,7 +7,7 @@ import operator
 
 from mopidy import backend, models
 
-from uritools import uricompose, urisplit
+import uritools
 
 from . import Extension, translator
 
@@ -55,20 +55,30 @@ def _chunks(seq, n):
         yield seq[i:i+n]
 
 
-def _objmapper(func):
-    def mapper(objs):
-        for obj in objs:
-            try:
-                yield func(obj)
-            except ValueError as e:
-                logger.debug('Skipping %s: %s', obj['URI'], e)
-    return mapper
+def iterate(func, translate, limit):
+    def generate(future):
+        offset = limit
+        while future:
+            objs = future.get()
+            if limit and len(objs) == limit:
+                future = func(offset, limit)
+            else:
+                future = None
+            for obj in objs:
+                try:
+                    result = translate(obj)
+                except ValueError as e:
+                    logger.debug('Skipping %s: %s', obj.get('URI'), e)
+                else:
+                    yield result
+            offset += limit
+    return generate(func(0, limit))
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
 
     root_directory = models.Ref.directory(
-        uri=uricompose(Extension.ext_name),
+        uri=uritools.uricompose(Extension.ext_name),
         name='Digital Media Servers'
     )
 
@@ -79,19 +89,20 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
-            return self.__browse_root()
+            refs = sorted(self.__servers, key=operator.attrgetter('name'))
         else:
-            return self.__browse_container(uri)
+            refs = self.__browse(uri)
+        return list(refs)
 
     def get_images(self, uris):
-        dleyna = self.backend.dleyna
-        servers = {obj['UDN']: obj for obj in dleyna.servers().get()}
+        client = self.backend.client
+        servers = {obj['UDN']: obj for obj in client.servers().get()}
         searchpaths = collections.defaultdict(list)  # for Path queries
         futures = []
         urimap = {}
         # TODO: refactor for URIs
         for uri in uris:
-            parts = urisplit(uri)
+            parts = uritools.urisplit(uri)
             try:
                 server = servers[parts.gethost()]
             except KeyError:
@@ -101,14 +112,14 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             if 'Path' in server['SearchCaps']:
                 searchpaths[root].append(path)
             else:
-                futures.append(dleyna.properties(path).apply(lambda x: [x]))
+                futures.append(client.properties(path).apply(lambda x: [x]))
             urimap[path] = uri
 
         for root, paths in searchpaths.items():
             # TODO: how to determine max. query size for server? config?
             for chunk in _chunks(paths, 50):
                 query = ' or '.join('Path = "%s"' % path for path in chunk)
-                futures.append(dleyna.search(root, query, 0, 0, IMAGES_FILTER))
+                futures.append(client.search(root, query, 0, 0, IMAGES_FILTER))
 
         results = {}
         for obj in itertools.chain.from_iterable(f.get() for f in futures):
@@ -117,103 +128,78 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             except KeyError:
                 logger.error('Unexpected path in image result: %r', obj)
             else:
-                results[uri] = translator.images(obj)
+                results[uri] = list(translator.images(obj))
         return results
 
     def lookup(self, uri):
-        dleyna = self.backend.dleyna
-        obj = dleyna.properties(uri).get()
-        if obj['Type'] == 'container':
-            future = dleyna.search(uri, LOOKUP_QUERY, filter=SEARCH_FILTER)
-            return list(map(translator.track, future.get()))
-        elif obj['Type'] in ('music', 'audio'):
-            return [translator.track(obj)]
+        if uri == self.root_directory.uri:
+            tracks = []
         else:
-            logger.error('Invalid object type for %s: %s', uri, obj['Type'])
-            return []
+            tracks = self.__lookup(uri)
+        return list(tracks)
 
     def refresh(self, uri=None):
         logger.info('Refreshing dLeyna library')
-        self.backend.dleyna.rescan().get()
+        self.backend.client.rescan().get()
 
     def search(self, query=None, uris=None, exact=False):
-        dleyna = self.backend.dleyna
-        # sanitize uris
+        # sanitize uris - remove duplicates, replace root with server uris
         uris = set(uris or [self.root_directory.uri])
         if self.root_directory.uri in uris:
-            uris.update(server['URI'] for server in dleyna.servers().get())
+            uris.update(ref.uri for ref in self.__servers)
             uris.remove(self.root_directory.uri)
-        # start searching
-        futures = []
+        # start searching - blocks only when iterating over results
+        results = []
         for uri in uris:
             try:
-                limit = self.__upnp_search_limit
-                future = self.__search(uri, query or {}, exact, 0, limit)
-            except ValueError as e:
+                iterable = self.__search(uri, query, exact)
+            except NotImplementedError as e:
                 logger.warn('Not searching %s: %s', uri, e)
             else:
-                futures.append(future)
-        # retrieve and merge search results
-        results = collections.defaultdict(collections.OrderedDict)
-        for model in itertools.chain.from_iterable(f.get() for f in futures):
-            results[type(model)][model.uri] = model  # merge results w/same uri
+                results.append(iterable)
+        if not results:
+            return None
+        # retrieve and merge search results - TODO: handle exceptions?
+        result = collections.defaultdict(collections.OrderedDict)
+        for model in itertools.chain.from_iterable(results):
+            result[type(model)][model.uri] = model
         return models.SearchResult(
-            uri=uricompose(Extension.ext_name, query=query),
-            albums=results[models.Album].values(),
-            artists=results[models.Artist].values(),
-            tracks=results[models.Track].values()
+            uri=uritools.uricompose(Extension.ext_name, query=query),
+            albums=result[models.Album].values(),
+            artists=result[models.Artist].values(),
+            tracks=result[models.Track].values()
         )
 
-    def __browse_root(self, key=operator.attrgetter('name')):
-        refs = []
-        for server in self.backend.dleyna.servers().get():
-            name = server.get('FriendlyName', server['DisplayName'])
-            refs.append(models.Ref.directory(name=name, uri=server['URI']))
-        return list(sorted(refs, key=key))
+    def __browse(self, uri):
+        client = self.backend.client
+        obj = client.properties(uri, iface=client.MEDIA_OBJECT_IFACE).get()
+        order = BROWSE_ORDER[translator.ref(obj).type]
 
-    def __browse_container(self, uri):
-        # determine sort order
-        dleyna = self.backend.dleyna
-        obj = dleyna.properties(uri, iface=dleyna.MEDIA_OBJECT_IFACE).get()
-        order = self.__sortorder(uri, BROWSE_ORDER[translator.ref(obj).type])
-        # start browsing
-        refs = []
-        offset = 0
-        limit = self.__upnp_browse_limit
-        future = self.__browse(uri, offset, limit, order)
-        while future:
-            result, more = future.get()
-            if more:
-                offset += limit
-                future = self.__browse(uri, offset, limit, order)
-            else:
-                future = None
-            refs.extend(result)
-        return refs
+        def browse(offset, limit):
+            return client.browse(uri, offset, limit, BROWSE_FILTER, order)
+        return iterate(browse, translator.ref, self.__upnp_browse_limit)
 
-    def __browse(self, uri, offset=0, limit=0, order=[],
-                 mapper=_objmapper(translator.ref)):
-        dleyna = self.backend.dleyna
-        future = dleyna.browse(uri, offset, limit, BROWSE_FILTER, order)
-        return future.apply(
-            lambda objs: (mapper(objs), limit and len(objs) == limit)
-        )
-
-    def __search(self, uri, query, exact=False, offset=0, limit=0, order=[],
-                 mapper=_objmapper(translator.model)):
-        dleyna = self.backend.dleyna
-        searchcaps = dleyna.server(uri).get().get('SearchCaps', [])
-        logger.debug('SearchCaps for %s: %r', uri, searchcaps)
-        query = translator.query(query, exact, searchcaps)
-        future = dleyna.search(uri, query, offset, limit, SEARCH_FILTER, order)
-        # TODO: return "more" flag as in browse
-        return future.apply(mapper)
-
-    def __sortorder(self, uri, order):
-        dleyna = self.backend.dleyna
-        sortcaps = frozenset(dleyna.server(uri).get().get('SortCaps', []))
-        logger.debug('SortCaps for %s: %r', uri, sortcaps)
-        if '*' in sortcaps:
-            return order
+    def __lookup(self, uri):
+        client = self.backend.client
+        obj = client.properties(uri).get()
+        if translator.ref(obj).type == models.Ref.TRACK:
+            objs = [obj]
         else:
-            return list(filter(lambda f: f[1:] in sortcaps, order))
+            objs = client.search(uri, LOOKUP_QUERY, filter=SEARCH_FILTER).get()
+        return map(translator.track, objs)
+
+    def __search(self, uri, query, exact):
+        client = self.backend.client
+        # TODO: better handling of searchcaps?
+        searchcaps = client.server(uri).get().get('SearchCaps', [])
+        q = translator.query(query or {}, exact, searchcaps)
+
+        def search(offset, limit):
+            return client.search(uri, q, offset, limit, SEARCH_FILTER)
+        return iterate(search, translator.model, self.__upnp_search_limit)
+
+    @property
+    def __servers(self):
+        for server in self.backend.client.servers().get():
+            name = server.get('FriendlyName', server['DisplayName'])
+            yield models.Ref.directory(name=name, uri=server['URI'])

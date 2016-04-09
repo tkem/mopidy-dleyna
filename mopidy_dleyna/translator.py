@@ -2,13 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 from mopidy import models
 
-ALBUM_TYPE = 'container.album.musicAlbum'
-
-ARTIST_TYPE = 'container.person.musicArtist'
-
-_PATH_PREFIX = '/com/intel/dLeynaServer/server/'
-
-_QUERYMAP = {
+_QUERY = {
     'any': lambda caps: (
         ' or '.join(s + ' {0} "{1}"' for s in caps & {
             'DisplayName', 'Album', 'Artist', 'Genre', 'Creator'
@@ -36,19 +30,15 @@ _QUERYMAP = {
 }
 
 # TODO: handle playlists and 'container.playlistContainer'
-_REFMAP = {
+_REFS = {
     'audio': models.Ref.track,
     'container': models.Ref.directory,
+    'container.album.musicAlbum': models.Ref.album,
     'container.genre.musicGenre': models.Ref.directory,
+    'container.person.musicArtist': models.Ref.artist,
     'container.storageFolder': models.Ref.directory,
-    'music': models.Ref.track,
-    ALBUM_TYPE: models.Ref.album,
-    ARTIST_TYPE: models.Ref.artist
+    'music': models.Ref.track
 }
-
-
-def _quote(s):
-    return unicode(s).replace('\\', '\\\\').replace('"', '\\"')
 
 
 def _album(obj):
@@ -61,24 +51,27 @@ def _album(obj):
 
 
 def _artists(obj):
-    artists = []
-    for name in filter(None, obj.get('Artists', [obj.get('Creator')])):
-        artists.append(models.Artist(name=name, uri=None))
-    return artists
+    return (models.Artist(name=name) for name in obj.get('Artists', []))
+
+
+def _quote(s):
+    return unicode(s).replace('\\', '\\\\').replace('"', '\\"')
 
 
 def ref(obj):
     type = obj.get('TypeEx', obj['Type'])
     try:
-        return _REFMAP[type](name=obj['DisplayName'], uri=obj['URI'])
+        translate = _REFS[type]
     except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
+    else:
+        return translate(name=obj['DisplayName'], uri=obj['URI'])
 
 
 def album(obj):
     return models.Album(
-        artists=_artists(obj),
         name=obj['DisplayName'],
+        artists=list(_artists(obj)),
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
         uri=obj['URI']
     )
@@ -90,12 +83,12 @@ def artist(obj):
 
 def track(obj):
     return models.Track(
+        name=obj['DisplayName'],
         album=_album(obj),
-        artists=_artists(obj),
+        artists=list(_artists(obj)),
         date=obj.get('Date'),
         genre=obj.get('Genre'),
         length=obj.get('Duration', 0) * 1000 or None,
-        name=obj['DisplayName'],
         track_no=obj.get('TrackNumber'),
         uri=obj['URI']
     )
@@ -105,9 +98,9 @@ def model(obj):
     type = obj.get('TypeEx', obj['Type'])
     if type == 'music' or type == 'audio':
         return track(obj)
-    elif type == ALBUM_TYPE:
+    elif type == 'container.album.musicAlbum':
         return album(obj)
-    elif type == ARTIST_TYPE:
+    elif type == 'container.person.musicArtist':
         return artist(obj)
     else:
         raise ValueError('Object type "%s" not supported' % type)
@@ -115,43 +108,26 @@ def model(obj):
 
 def images(obj):
     try:
-        return [models.Image(uri=obj['AlbumArtURL'])]
+        uri = obj['AlbumArtURL']
     except KeyError:
-        return []
+        pass
+    else:
+        yield models.Image(uri=uri)
 
 
 def query(query, exact, searchcaps):
-    terms = []
-    caps = frozenset(searchcaps)
     op = '=' if exact else 'contains'
+    terms = []
     for key, values in query.items():
         try:
-            fmt = _QUERYMAP[key](caps)
+            translate = _QUERY[key]
         except KeyError:
-            raise ValueError('Keyword "%s" not supported' % key)
+            raise NotImplementedError('Keyword "%s" not supported' % key)
+        else:
+            fmt = translate(frozenset(searchcaps))
+        # TODO: fail at runtime/server? "any" handling?
         if fmt:
             terms.extend(fmt.format(op, _quote(value)) for value in values)
         else:
-            raise ValueError('Keyword "%s" not supported by device' % key)
+            raise NotImplementedError('Keyword "%s" not supported' % key)
     return ('(%s)' % ') and ('.join(terms)) or '*'
-
-
-def urifilter(fields):
-    if 'URI' in fields:
-        objfilter = fields[:]
-        objfilter.remove('URI')
-        objfilter.append('Path')
-        objfilter.append('RefPath')
-        return objfilter
-    else:
-        return fields
-
-
-def urimapper(baseuri):
-    def mapper(obj, index=len(_PATH_PREFIX)):
-        objpath = obj.get('RefPath', obj['Path'])
-        assert objpath.startswith(_PATH_PREFIX)
-        _, sep, relpath = objpath[index:].partition('/')
-        obj['URI'] = baseuri + sep + relpath
-        return obj
-    return mapper

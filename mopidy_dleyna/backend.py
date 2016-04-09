@@ -31,11 +31,11 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
         super(dLeynaBackend, self).__init__()
         try:
             if DBUS_SESSION_BUS_ADDRESS in os.environ:
-                self.dleyna = dLeynaClient()
+                self.client = dLeynaClient()
             else:
                 env = self.__start_dbus()
                 self.__dbus_pid = int(env[DBUS_SESSION_BUS_PID])
-                self.dleyna = dLeynaClient(str(env[DBUS_SESSION_BUS_ADDRESS]))
+                self.client = dLeynaClient(str(env[DBUS_SESSION_BUS_ADDRESS]))
         except Exception as e:
             logger.error('Error starting %s: %s', Extension.dist_name, e)
             # TODO: clean way to bail out late?
