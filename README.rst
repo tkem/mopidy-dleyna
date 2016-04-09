@@ -9,8 +9,8 @@ NAS, PC, or any other device running a UPnP/DLNA compliant media
 server.  Compatible devices are discovered automatically on your local
 network, so there is no configuration needed.
 
-For more information, please see Mopidy-dLeyna's online
-documentation_.
+For more information and installation instructions, please see
+Mopidy-dLeyna's online documentation_.
 
 
 Project Resources
