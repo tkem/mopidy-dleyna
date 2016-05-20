@@ -33,6 +33,7 @@ _QUERY = {
 _REFS = {
     'audio': models.Ref.track,
     'container': models.Ref.directory,
+    'container.album': models.Ref.directory,
     'container.album.musicAlbum': models.Ref.album,
     'container.genre.musicGenre': models.Ref.directory,
     'container.person.musicArtist': models.Ref.artist,
