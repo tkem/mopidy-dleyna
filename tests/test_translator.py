@@ -66,6 +66,7 @@ def test_artist():
 def test_track():
     assert translator.model({
         'DisplayName': 'Foo',
+        'Album': 'Bar',
         'URI': BASEURI + '/foo',
         'Type': 'music',
-    }) == Track(uri=BASEURI+'/foo', name='Foo')
+    }) == Track(uri=BASEURI+'/foo', name='Foo', album=Album(name='Bar'))

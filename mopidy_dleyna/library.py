@@ -51,11 +51,6 @@ BROWSE_ORDER = {
 LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps
 
 
-def _chunks(seq, n):
-    for i in range(0, len(seq), n):
-        yield seq[i:i+n]
-
-
 def iterate(func, translate, limit):
     def generate(future):
         offset = limit
@@ -85,9 +80,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def __init__(self, backend, config):
         super(dLeynaLibraryProvider, self).__init__(backend)
-        self.__upnp_browse_limit = config['upnp_browse_limit']
-        self.__upnp_lookup_limit = config['upnp_lookup_limit']
-        self.__upnp_search_limit = config['upnp_search_limit']
+        ext_config = config[Extension.ext_name]
+        self.__upnp_browse_limit = ext_config['upnp_browse_limit']
+        self.__upnp_lookup_limit = ext_config['upnp_lookup_limit']
+        self.__upnp_search_limit = ext_config['upnp_search_limit']
 
     def browse(self, uri):
         if uri == self.root_directory.uri:

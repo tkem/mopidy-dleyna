@@ -4,18 +4,13 @@ from mopidy_dleyna import Extension
 
 
 def test_get_default_config():
-    ext = Extension()
-    config = ext.get_default_config()
-    assert '[dleyna]' in config
+    config = Extension().get_default_config()
+    assert '[' + Extension.ext_name + ']' in config
     assert 'enabled = true' in config
 
 
 def test_get_config_schema():
-    ext = Extension()
-    schema = ext.get_config_schema()
-    assert 'enabled' in schema
+    schema = Extension().get_config_schema()
     assert 'upnp_browse_limit' in schema
+    assert 'upnp_lookup_limit' in schema
     assert 'upnp_search_limit' in schema
-
-
-# TODO Write more tests
