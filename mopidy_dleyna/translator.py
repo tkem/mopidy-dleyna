@@ -107,12 +107,10 @@ def model(obj):
 
 
 def images(obj):
-    try:
-        uri = obj['AlbumArtURL']
-    except KeyError:
-        pass
+    if 'AlbumArtURL' in obj:
+        return obj['URI'], [models.Image(uri=obj['AlbumArtURL'])]
     else:
-        yield models.Image(uri=uri)
+        return obj['URI'], []
 
 
 def query(query, exact, searchcaps):

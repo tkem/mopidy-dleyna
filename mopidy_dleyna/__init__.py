@@ -19,6 +19,7 @@ class Extension(ext.Extension):
     def get_config_schema(self):
         schema = super(Extension, self).get_config_schema()
         schema['upnp_browse_limit'] = config.Integer(minimum=0)
+        schema['upnp_lookup_limit'] = config.Integer(minimum=0)
         schema['upnp_search_limit'] = config.Integer(minimum=0)
         return schema
 

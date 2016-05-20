@@ -22,7 +22,7 @@ BROWSE_FILTER = [
 
 IMAGES_FILTER = [
     'AlbumArtURL',
-    'Path'
+    'URI'
 ]
 
 SEARCH_FILTER = [
@@ -84,8 +84,9 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def __init__(self, backend, config):
         super(dLeynaLibraryProvider, self).__init__(backend)
-        self.__upnp_search_limit = config['upnp_search_limit']
         self.__upnp_browse_limit = config['upnp_browse_limit']
+        self.__upnp_lookup_limit = config['upnp_lookup_limit']
+        self.__upnp_search_limit = config['upnp_search_limit']
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
@@ -95,41 +96,26 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return list(refs)
 
     def get_images(self, uris):
-        client = self.backend.client
-        servers = {obj['UDN']: obj for obj in client.servers().get()}
-        searchpaths = collections.defaultdict(list)  # for Path queries
-        futures = []
-        urimap = {}
-        # TODO: refactor for URIs
-        for uri in uris:
+        # group uris by authority (media server)
+        queries = collections.defaultdict(list)
+        for uri in frozenset(uris).difference([self.root_directory.uri]):
             parts = uritools.urisplit(uri)
+            baseuri = parts.scheme + '://' + parts.authority
+            queries[baseuri].append(parts.path)
+        # start searching - blocks only when iterating over results
+        results = []
+        for baseuri, paths in queries.items():
             try:
-                server = servers[parts.gethost()]
-            except KeyError:
-                raise LookupError('Cannot resolve URI %s' % uri)
-            root = server['Path']
-            path = root + parts.getpath()
-            if 'Path' in server['SearchCaps']:
-                searchpaths[root].append(path)
+                iterable = self.__images(baseuri, paths)
+            except NotImplementedError as e:
+                logger.warn('Not retrieving images for %s: %s', baseuri, e)
             else:
-                futures.append(client.properties(path).apply(lambda x: [x]))
-            urimap[path] = uri
-
-        for root, paths in searchpaths.items():
-            # TODO: how to determine max. query size for server? config?
-            for chunk in _chunks(paths, 50):
-                query = ' or '.join('Path = "%s"' % path for path in chunk)
-                futures.append(client.search(root, query, 0, 0, IMAGES_FILTER))
-
-        results = {}
-        for obj in itertools.chain.from_iterable(f.get() for f in futures):
-            try:
-                uri = urimap[obj['Path']]
-            except KeyError:
-                logger.error('Unexpected path in image result: %r', obj)
-            else:
-                results[uri] = list(translator.images(obj))
-        return results
+                results.append(iterable)
+        # merge results
+        result = {}
+        for uri, images in itertools.chain.from_iterable(results):
+            result[uri] = tuple(images)
+        return result
 
     def lookup(self, uri):
         if uri == self.root_directory.uri:
@@ -179,6 +165,22 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             return client.browse(uri, offset, limit, BROWSE_FILTER, order)
         return iterate(browse, translator.ref, self.__upnp_browse_limit)
 
+    def __images(self, baseuri, paths):
+        client = self.backend.client
+        server = client.server(baseuri).get()
+        # iteratively retrieve props if path search is not available
+        if 'Path' not in server['SearchCaps']:
+            futures = [client.properties(baseuri + path) for path in paths]
+            return (translator.images(f.get()) for f in futures)
+        # TODO: client method?
+        root = server['Path']
+
+        def images(offset, limit):
+            slice = paths[offset:offset + limit if limit else None]
+            query = ' or '.join('Path = "%s%s"' % (root, p) for p in slice)
+            return client.search(baseuri, query, 0, 0, IMAGES_FILTER)
+        return iterate(images, translator.images, self.__upnp_lookup_limit)
+
     def __lookup(self, uri):
         client = self.backend.client
         obj = client.properties(uri).get()
@@ -190,9 +192,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     def __search(self, uri, query, exact):
         client = self.backend.client
-        # TODO: better handling of searchcaps?
-        searchcaps = client.server(uri).get().get('SearchCaps', [])
-        q = translator.query(query or {}, exact, searchcaps)
+        server = client.server(uri).get()
+        q = translator.query(query or {}, exact, server['SearchCaps'])
 
         def search(offset, limit):
             return client.search(uri, q, offset, limit, SEARCH_FILTER)
