@@ -4,7 +4,7 @@ import os
 
 from mopidy import config, exceptions, ext
 
-__version__ = '1.0.5'
+__version__ = '1.1.0'
 
 
 class Extension(ext.Extension):

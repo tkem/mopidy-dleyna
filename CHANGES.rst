@@ -1,3 +1,19 @@
+v1.1.0 (2016-05-20)
+-------------------
+
+- Add ``upnp_lookup_limit`` configuration value.
+
+- Add support for minidlna "All Albums" collections.
+
+- Add track bitrate according to DLNA specification.
+
+- Add basic unit tests for ``library`` and ``playback`` providers.
+
+- Update documentation and build environment.
+
+- Various code refactorings and improvements.
+
+
 v1.0.5 (2016-01-22)
 -------------------
 
