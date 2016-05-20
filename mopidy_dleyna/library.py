@@ -30,6 +30,7 @@ SEARCH_FILTER = [
     'AlbumArtURL',
     'Artist',
     'Artists',
+    'Bitrate',
     'Creator',
     'Date',
     'DisplayName',

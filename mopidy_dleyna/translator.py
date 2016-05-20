@@ -71,10 +71,10 @@ def ref(obj):
 
 def album(obj):
     return models.Album(
+        uri=obj['URI'],
         name=obj['DisplayName'],
         artists=list(_artists(obj)),
         num_tracks=obj.get('ItemCount', obj.get('ChildCount')),
-        uri=obj['URI']
     )
 
 
@@ -84,14 +84,15 @@ def artist(obj):
 
 def track(obj):
     return models.Track(
+        uri=obj['URI'],
         name=obj['DisplayName'],
-        album=_album(obj),
         artists=list(_artists(obj)),
-        date=obj.get('Date'),
+        album=_album(obj),
         genre=obj.get('Genre'),
-        length=obj.get('Duration', 0) * 1000 or None,
         track_no=obj.get('TrackNumber'),
-        uri=obj['URI']
+        date=obj.get('Date'),
+        length=obj.get('Duration', 0) * 1000 or None,
+        bitrate=obj.get('Bitrate', 0) * 8 or None
     )
 
 
