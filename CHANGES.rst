@@ -1,7 +1,9 @@
-v1.1.0 (2016-05-20)
+v1.1.0 (2016-05-21)
 -------------------
 
-- Add ``upnp_lookup_limit`` configuration value.
+- Add ``upnp_lookup_limit`` configuration value (experimental).
+
+- Add support for ``albumartist`` queries.
 
 - Add support for minidlna "All Albums" collections.
 
