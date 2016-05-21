@@ -28,6 +28,9 @@ Configuration Values
    to have any effect, the media server must advertise that it is
    capable of searching for object IDs.
 
+   This is an *experimental* setting and may be changed or removed in
+   future versions.
+
 .. confval:: dleyna/dleyna/upnp_search_limit
 
    The maximum number of objects to retrieve per UPnP `Search` action,
