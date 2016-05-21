@@ -31,7 +31,6 @@ LOOKUP_FILTER = SEARCH_FILTER = [
     'Artist',
     'Artists',
     'Bitrate',
-    'Creator',
     'Date',
     'DisplayName',
     'Duration',
