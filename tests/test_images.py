@@ -6,6 +6,8 @@ from mopidy import models
 
 import pytest
 
+from mopidy_dleyna.util import Future
+
 
 @pytest.fixture
 def server():
@@ -37,9 +39,9 @@ def items():
 
 def test_images(backend, server, items):
     with mock.patch.object(backend, 'client') as m:
-        m.servers.return_value.get.return_value = [server]
-        m.server.return_value.get.return_value = server
-        m.search.return_value.get.return_value = items
+        m.servers.return_value = Future.fromvalue([server])
+        m.server.return_value = Future.fromvalue(server)
+        m.search.return_value = Future.fromvalue(items)
         assert backend.library.get_images(item['URI'] for item in items) == {
             items[0]['URI']: (models.Image(uri=items[0]['AlbumArtURL']),),
             items[1]['URI']: tuple()

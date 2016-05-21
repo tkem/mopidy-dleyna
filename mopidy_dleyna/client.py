@@ -7,11 +7,9 @@ import time
 
 import dbus
 
-import pykka
-
 import uritools
 
-from . import Extension
+from . import Extension, util
 
 SERVER_BUS_NAME = 'com.intel.dleyna-server'
 
@@ -41,38 +39,6 @@ def urimapper(baseuri, prefix='/com/intel/dLeynaServer/server/'):
         obj['URI'] = baseuri + sep + relpath
         return obj
     return mapper
-
-
-class Future(pykka.ThreadingFuture):
-    def apply(self, func):
-        # similar to map(), but always works on single value
-        future = self.__class__()
-        future.set_get_hook(lambda timeout: func(self.get(timeout)))
-        return future
-
-    @classmethod
-    def fromdbus(cls, func, *args, **kwargs):
-        method = getattr(func, '_method_name', '<unknown>')
-        logger.debug('Calling D-Bus method %s%s', method, args)
-        future = cls()
-        start = time.time()
-
-        def reply(*args):
-            logger.debug('%s reply after %.3fs', method, time.time() - start)
-            future.set(args[0] if len(args) == 1 else args)
-
-        def error(e):
-            logger.debug('%s error after %.3fs', method, time.time() - start)
-            future.set_exception(exc_info=(type(e), e, None))
-
-        func(*args, reply_handler=reply, error_handler=error, **kwargs)
-        return future
-
-    @classmethod
-    def fromvalue(cls, value):
-        future = cls()
-        future.set(value)
-        return future
 
 
 class Servers(collections.Mapping):
@@ -180,7 +146,7 @@ class dLeynaClient(object):
 
     def browse(self, uri, offset=0, limit=0, filter=['*'], order=[]):
         baseuri, objpath = self.__parseuri(uri)
-        future = Future.fromdbus(
+        future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildrenEx,
             dbus.UInt32(offset), dbus.UInt32(limit), urifilter(filter),
             ','.join(self.__sortorder(uri, order)),
@@ -193,7 +159,7 @@ class dLeynaClient(object):
 
     def properties(self, uri, iface=None):
         baseuri, objpath = self.__parseuri(uri)
-        future = Future.fromdbus(
+        future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).GetAll,
             iface or '',
             dbus_interface=dbus.PROPERTIES_IFACE
@@ -204,14 +170,14 @@ class dLeynaClient(object):
             return future
 
     def rescan(self):
-        return Future.fromdbus(
+        return util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).Rescan,
             dbus_interface=SERVER_MANAGER_IFACE
         )
 
     def search(self, uri, query, offset=0, limit=0, filter=['*'], order=[]):
         baseuri, objpath = self.__parseuri(uri)
-        future = Future.fromdbus(
+        future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjectsEx,
             query, dbus.UInt32(offset), dbus.UInt32(limit), urifilter(filter),
             ','.join(self.__sortorder(uri, order)),
@@ -224,11 +190,11 @@ class dLeynaClient(object):
 
     def server(self, uri):
         # return future for consistency/future extensions
-        return Future.fromvalue(self.__server(uri))
+        return util.Future.fromvalue(self.__server(uri))
 
     def servers(self):
         # return future for consistency/future extensions
-        return Future.fromvalue(self.__servers.values())
+        return util.Future.fromvalue(self.__servers.values())
 
     def __parseuri(self, uri):
         try:
@@ -319,7 +285,7 @@ if __name__ == '__main__':  # pragma: no cover
     while True:
         try:
             future.get(timeout=0)
-        except pykka.Timeout:
+        except util.Future.Timeout:
             gobject.MainLoop().get_context().iteration(True)
         else:
             break

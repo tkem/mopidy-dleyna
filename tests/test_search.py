@@ -6,6 +6,8 @@ from mopidy import models
 
 import pytest
 
+from mopidy_dleyna.util import Future
+
 
 @pytest.fixture
 def server():
@@ -41,11 +43,11 @@ def result():
 
 def test_search(backend, server, result):
     with mock.patch.object(backend, 'client') as m:
-        m.servers.return_value.get.return_value = [server]
-        m.server.return_value.get.return_value = server
-        m.search.return_value.get.return_value = result
+        m.servers.return_value = Future.fromvalue([server])
+        m.server.return_value = Future.fromvalue(server)
+        m.search.return_value = Future.fromvalue(result)
+        # valid search
         assert backend.library.search({'any': ['foo']}) == models.SearchResult(
-            uri='dleyna:?any=foo',
             albums=[
                 models.Album(name='Album #1', uri='dleyna://media/1')
             ],
@@ -54,3 +56,7 @@ def test_search(backend, server, result):
                 models.Track(name='Track #2', uri='dleyna://media/12')
             ]
         )
+        # unsupported search field yields no result
+        assert backend.library.search({'composer': ['foo']}) is None
+        # search field not supported by device yields no result
+        assert backend.library.search({'genre': ['foo']}) is None

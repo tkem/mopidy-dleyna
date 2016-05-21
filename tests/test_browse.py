@@ -6,6 +6,8 @@ from mopidy.models import Ref
 
 import pytest
 
+from mopidy_dleyna.util import Future
+
 
 @pytest.fixture
 def servers():
@@ -50,7 +52,7 @@ def items():
 
 def test_browse_root(backend, servers):
     with mock.patch.object(backend, 'client') as m:
-        m.servers.return_value.get.return_value = servers
+        m.servers.return_value = Future.fromvalue(servers)
         assert backend.library.browse(backend.library.root_directory.uri) == [
             Ref.directory(name='Media Server #1', uri='dleyna://media1'),
             Ref.directory(name='Media Server #2', uri='dleyna://media2'),
@@ -60,8 +62,8 @@ def test_browse_root(backend, servers):
 def test_browse_items(backend, container, items):
     # FIXME: how to patch multiple object methods...
     with mock.patch.object(backend, 'client') as m:
-        m.properties.return_value.get.return_value = container
-        m.browse.return_value.get.return_value = items
+        m.properties.return_value = Future.fromvalue(container)
+        m.browse.return_value = Future.fromvalue(items)
         assert backend.library.browse(container['URI']) == [
             Ref.track(name='Track #1', uri='dleyna://media/1'),
             Ref.track(name='Track #2', uri='dleyna://media/2')

@@ -4,6 +4,8 @@ import mock
 
 import pytest
 
+from mopidy_dleyna.util import Future
+
 
 @pytest.fixture
 def item():
@@ -17,11 +19,11 @@ def item():
 
 def test_translate_uri(backend, item):
     with mock.patch.object(backend, 'client') as m:
-        m.properties.return_value.get.return_value = item
+        m.properties.return_value = Future.fromvalue(item)
         assert backend.playback.translate_uri(item['URI']) == item['URLs'][0]
 
 
 def test_translate_unknown_uri(backend):
     with mock.patch.object(backend, 'client') as m:
-        m.properties.return_value.get.side_effect = Exception('Not Found')
+        m.properties.return_value = Future.exception(LookupError('Not Found'))
         assert backend.playback.translate_uri('') is None

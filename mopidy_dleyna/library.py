@@ -25,7 +25,7 @@ IMAGES_FILTER = [
     'URI'
 ]
 
-SEARCH_FILTER = [
+LOOKUP_FILTER = SEARCH_FILTER = [
     'Album',
     'AlbumArtURL',
     'Artist',
@@ -55,8 +55,8 @@ def iterate(func, translate, limit):
     def generate(future):
         offset = limit
         while future:
-            objs = future.get()
-            if limit and len(objs) == limit:
+            objs, more = future.get()
+            if more:
                 future = func(offset, limit)
             else:
                 future = None
@@ -93,9 +93,11 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return list(refs)
 
     def get_images(self, uris):
+        # TODO: suggest as API improvement
+        uris = frozenset(uris)
         # group uris by authority (media server)
         queries = collections.defaultdict(list)
-        for uri in frozenset(uris).difference([self.root_directory.uri]):
+        for uri in uris.difference([self.root_directory.uri]):
             parts = uritools.urisplit(uri)
             baseuri = parts.scheme + '://' + parts.authority
             queries[baseuri].append(parts.path)
@@ -112,6 +114,8 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         result = {}
         for uri, images in itertools.chain.from_iterable(results):
             result[uri] = tuple(images)
+        if self.root_directory.uri in uris:
+            result[self.root_directory.uri] = tuple()
         return result
 
     def lookup(self, uri):
@@ -147,53 +151,58 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         for model in itertools.chain.from_iterable(results):
             result[type(model)][model.uri] = model
         return models.SearchResult(
-            uri=uritools.uricompose(Extension.ext_name, query=query),
             albums=result[models.Album].values(),
             artists=result[models.Artist].values(),
             tracks=result[models.Track].values()
         )
 
-    def __browse(self, uri):
+    def __browse(self, uri, filter=BROWSE_FILTER):
         client = self.backend.client
         obj = client.properties(uri, iface=client.MEDIA_OBJECT_IFACE).get()
         order = BROWSE_ORDER[translator.ref(obj).type]
 
         def browse(offset, limit):
-            return client.browse(uri, offset, limit, BROWSE_FILTER, order)
+            return client.browse(uri, offset, limit, filter, order).apply(
+                lambda objs: (objs, limit and len(objs) == limit)
+            )
         return iterate(browse, translator.ref, self.__upnp_browse_limit)
 
-    def __images(self, baseuri, paths):
+    def __images(self, baseuri, paths, filter=IMAGES_FILTER):
         client = self.backend.client
         server = client.server(baseuri).get()
-        # iteratively retrieve props if path search is not available
-        if 'Path' not in server['SearchCaps']:
+        # fall back on properties if path search is not available/enabled
+        if self.__upnp_lookup_limit == 1 or 'Path' not in server['SearchCaps']:
             futures = [client.properties(baseuri + path) for path in paths]
             return (translator.images(f.get()) for f in futures)
-        # TODO: client method?
+        # use path search for retrieving multiple results at once
         root = server['Path']
 
         def images(offset, limit):
             slice = paths[offset:offset + limit if limit else None]
             query = ' or '.join('Path = "%s%s"' % (root, p) for p in slice)
-            return client.search(baseuri, query, 0, 0, IMAGES_FILTER)
+            return client.search(baseuri, query, 0, 0, filter).apply(
+                lambda objs: (objs, limit and offset + limit < len(paths))
+            )
         return iterate(images, translator.images, self.__upnp_lookup_limit)
 
-    def __lookup(self, uri):
+    def __lookup(self, uri, filter=LOOKUP_FILTER):
         client = self.backend.client
         obj = client.properties(uri).get()
         if translator.ref(obj).type == models.Ref.TRACK:
             objs = [obj]
         else:
-            objs = client.search(uri, LOOKUP_QUERY, filter=SEARCH_FILTER).get()
+            objs = client.search(uri, LOOKUP_QUERY, filter=filter).get()
         return map(translator.track, objs)
 
-    def __search(self, uri, query, exact):
+    def __search(self, uri, query, exact, filter=SEARCH_FILTER):
         client = self.backend.client
         server = client.server(uri).get()
         q = translator.query(query or {}, exact, server['SearchCaps'])
 
         def search(offset, limit):
-            return client.search(uri, q, offset, limit, SEARCH_FILTER)
+            return client.search(uri, q, offset, limit, filter).apply(
+                lambda objs: (objs, limit and len(objs) == limit)
+            )
         return iterate(search, translator.model, self.__upnp_search_limit)
 
     @property

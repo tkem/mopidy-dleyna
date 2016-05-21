@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 from mopidy.models import Album, Artist, Ref, Track
 
+import pytest
+
 from mopidy_dleyna import translator
 
 BASEURI = 'dleyna://foo'
@@ -45,6 +47,15 @@ def test_directory_ref():
     }) == Ref.directory(uri=BASEURI+'/foo', name='Foo')
 
 
+def test_video_ref():
+    with pytest.raises(ValueError):
+        translator.ref({
+            'DisplayName': 'Foo',
+            'URI': BASEURI + '/foo',
+            'Type': 'video'
+        })
+
+
 def test_album():
     assert translator.model({
         'DisplayName': 'Foo',
@@ -70,3 +81,12 @@ def test_track():
         'URI': BASEURI + '/foo',
         'Type': 'music',
     }) == Track(uri=BASEURI+'/foo', name='Foo', album=Album(name='Bar'))
+
+
+def test_video():
+    with pytest.raises(ValueError):
+        translator.model({
+            'DisplayName': 'Foo',
+            'URI': BASEURI + '/foo',
+            'Type': 'video'
+        })

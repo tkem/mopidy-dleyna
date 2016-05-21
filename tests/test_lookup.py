@@ -6,6 +6,8 @@ from mopidy import models
 
 import pytest
 
+from mopidy_dleyna.util import Future
+
 
 @pytest.fixture
 def container():
@@ -39,7 +41,7 @@ def test_lookup_root(backend):
 
 def test_lookup_item(backend, items):
     with mock.patch.object(backend, 'client') as m:
-        m.properties.return_value.get.return_value = items[0]
+        m.properties.return_value = Future.fromvalue(items[0])
         assert backend.library.lookup(items[0]['URI']) == [
             models.Track(name='Track #1', uri='dleyna://media/11')
         ]
@@ -47,8 +49,8 @@ def test_lookup_item(backend, items):
 
 def test_lookup_container(backend, container, items):
     with mock.patch.object(backend, 'client') as m:
-        m.properties.return_value.get.return_value = container
-        m.search.return_value.get.return_value = items
+        m.properties.return_value = Future.fromvalue(container)
+        m.search.return_value = Future.fromvalue(items)
         assert backend.library.lookup(container['URI']) == [
             models.Track(name='Track #1', uri='dleyna://media/11'),
             models.Track(name='Track #2', uri='dleyna://media/12')

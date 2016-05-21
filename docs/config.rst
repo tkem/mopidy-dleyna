@@ -24,9 +24,9 @@ Configuration Values
 .. confval:: dleyna/upnp_lookup_limit
 
    The maximum number of objects to retrieve by ID in a single UPnP
-   `Search` action, or ``0`` to retrieve all objects.  Note that for
-   this setting to have any effect, the media server must advertise
-   that it is capable of searching for object IDs.
+   `Search` action, or ``0`` for no limit.  Note that for this setting
+   to have any effect, the media server must advertise that it is
+   capable of searching for object IDs.
 
 .. confval:: dleyna/dleyna/upnp_search_limit
 
