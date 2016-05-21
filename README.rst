@@ -20,10 +20,6 @@ Project Resources
     :target: https://pypi.python.org/pypi/Mopidy-dLeyna/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/pypi/dm/Mopidy-dLeyna.svg?style=flat
-    :target: https://pypi.python.org/pypi/Mopidy-dLeyna/
-    :alt: Number of PyPI downloads
-
 .. image:: https://img.shields.io/travis/tkem/mopidy-dleyna/master.svg?style=flat
     :target: https://travis-ci.org/tkem/mopidy-dleyna
     :alt: Travis CI build status
