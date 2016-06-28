@@ -1,3 +1,10 @@
+v1.1.1 (2016-06-28)
+-------------------
+
+- Add workaround for partially retrieved browse results with Kodi
+  16.0 DLNA server.
+
+
 v1.1.0 (2016-05-21)
 -------------------
 
