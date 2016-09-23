@@ -21,6 +21,7 @@ class Extension(ext.Extension):
         schema['upnp_browse_limit'] = config.Integer(minimum=0)
         schema['upnp_lookup_limit'] = config.Integer(minimum=0)
         schema['upnp_search_limit'] = config.Integer(minimum=0)
+        schema['dbus_start_session'] = config.String()
         return schema
 
     def setup(self, registry):

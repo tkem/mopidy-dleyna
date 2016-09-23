@@ -14,3 +14,4 @@ def test_get_config_schema():
     assert 'upnp_browse_limit' in schema
     assert 'upnp_lookup_limit' in schema
     assert 'upnp_search_limit' in schema
+    assert 'dbus_start_session' in schema

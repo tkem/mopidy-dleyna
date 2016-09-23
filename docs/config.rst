@@ -36,10 +36,15 @@ Configuration Values
    This is an *experimental* setting and may be changed or removed in
    future versions.
 
-.. confval:: dleyna/dleyna/upnp_search_limit
+.. confval:: dleyna/upnp_search_limit
 
    The maximum number of objects to retrieve per UPnP `Search` action,
    or ``0`` to retrieve all objects.
+
+.. confval:: dleyna/dbus_start_session
+
+   The command to start a D-Bus session bus if none is found, for
+   example when running Mopidy as a service.
 
 
 .. _defconf:
