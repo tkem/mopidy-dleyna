@@ -196,7 +196,10 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def __search(self, uri, query, exact, filter=SEARCH_FILTER):
         client = self.backend.client
         server = client.server(uri).get()
-        q = translator.query(query or {}, exact, server['SearchCaps'])
+        if server['SearchCaps']:
+            q = translator.query(query or {}, exact, server['SearchCaps'])
+        else:
+            raise NotImplementedError('Search is not supported by this device')
 
         def search(offset, limit):
             return client.search(uri, q, offset, limit, filter).apply(

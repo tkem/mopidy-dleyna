@@ -131,9 +131,8 @@ def query(query, exact, searchcaps):
             raise NotImplementedError('Keyword "%s" not supported' % key)
         else:
             fmt = translate(frozenset(searchcaps))
-        # TODO: fail at runtime/server? "any" handling?
         if fmt:
             terms.extend(fmt.format(op, _quote(value)) for value in values)
         else:
-            raise NotImplementedError('Keyword "%s" not supported' % key)
+            raise NotImplementedError('Keyword "%s" not searchable' % key)
     return ('(%s)' % ') and ('.join(terms)) or '*'
