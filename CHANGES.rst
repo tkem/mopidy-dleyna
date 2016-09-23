@@ -1,3 +1,18 @@
+v1.2.0 (2016-09-23)
+-------------------
+
+- Add ``dbus_start_session`` configuration value for specifying the
+  command to start a session bus.  The default is to invoke
+  ``dbus-daemon`` daemon directly, so ``dbus-launch`` is no longer
+  needed (but is still supported for now).
+
+- Check for ``$XDG_RUNTIME_DIR/bus`` before starting a session bus.
+
+- Update installation dependencies.
+
+- Improve log messages if search is not supported.
+
+
 v1.1.1 (2016-06-28)
 -------------------
 
