@@ -143,7 +143,7 @@ v0.4.0 (2015-08-11)
 
 - Add browse/search filters.
 
-- Peristent URI handling.
+- Persistent URI handling.
 
 
 v0.3.1 (2015-04-11)
