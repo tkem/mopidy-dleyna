@@ -35,7 +35,6 @@ _QUERY = {
     )
 }
 
-# TODO: handle playlists and 'container.playlistContainer'
 _REFS = {
     'audio': models.Ref.track,
     'container': models.Ref.directory,
@@ -43,7 +42,10 @@ _REFS = {
     'container.album.musicAlbum': models.Ref.album,
     'container.genre.musicGenre': models.Ref.directory,
     'container.person.musicArtist': models.Ref.artist,
+    'container.playlistContainer': models.Ref.directory,
     'container.storageFolder': models.Ref.directory,
+    'item.audioItem.audioBook': models.Ref.track,
+    'item.audioItem.audioBroadcast': models.Ref.track,
     'music': models.Ref.track
 }
 
@@ -104,11 +106,12 @@ def track(obj):
 
 def model(obj):
     type = obj.get('TypeEx', obj['Type'])
-    if type == 'music' or type == 'audio':
+    ref = _REFS.get(type)
+    if ref == models.Ref.track:
         return track(obj)
-    elif type == 'container.album.musicAlbum':
+    elif ref == models.Ref.album:
         return album(obj)
-    elif type == 'container.person.musicArtist':
+    elif ref == models.Ref.artist:
         return artist(obj)
     else:
         raise ValueError('Object type "%s" not supported' % type)
