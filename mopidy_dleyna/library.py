@@ -51,23 +51,23 @@ LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps
 
 
 def iterate(func, translate, limit):
-    def generate(future):
-        offset = limit
-        while future:
-            objs, more = future.get()
-            if more:
-                future = func(offset, limit)
+    count = 0
+    future = func(count, limit)
+    while future:
+        objs, more = future.get()
+        if more:
+            objs = list(objs)
+            count += len(objs)
+            future = func(count, limit)
+        else:
+            future = None
+        for obj in objs:
+            try:
+                result = translate(obj)
+            except ValueError as e:
+                logger.debug('Skipping %s: %s', obj.get('URI'), e)
             else:
-                future = None
-            for obj in objs:
-                try:
-                    result = translate(obj)
-                except ValueError as e:
-                    logger.debug('Skipping %s: %s', obj.get('URI'), e)
-                else:
-                    yield result
-            offset += limit
-    return generate(func(0, limit))
+                yield result
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
@@ -161,9 +161,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         order = BROWSE_ORDER[translator.ref(obj).type]
 
         def browse(offset, limit):
-            return client.browse(uri, offset, limit, filter, order).apply(
-                lambda objs: (objs, limit and len(objs) == limit)
-            )
+            return client.browse(uri, offset, limit, filter, order)
         return iterate(browse, translator.ref, self.__upnp_browse_limit)
 
     def __images(self, baseuri, paths, filter=IMAGES_FILTER):
@@ -180,7 +178,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             slice = paths[offset:offset + limit if limit else None]
             query = ' or '.join('Path = "%s%s"' % (root, p) for p in slice)
             return client.search(baseuri, query, 0, 0, filter).apply(
-                lambda objs: (objs, limit and offset + limit < len(paths))
+                lambda res: (res[0], limit and offset + limit < len(paths))
             )
         return iterate(images, translator.images, self.__upnp_lookup_limit)
 
@@ -190,7 +188,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         if translator.ref(obj).type == models.Ref.TRACK:
             objs = [obj]
         else:
-            objs = client.search(uri, LOOKUP_QUERY, filter=filter).get()
+            objs, _ = client.search(uri, LOOKUP_QUERY, filter=filter).get()
         return map(translator.track, objs)
 
     def __search(self, uri, query, exact, filter=SEARCH_FILTER):
@@ -202,9 +200,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             raise NotImplementedError('Search is not supported by this device')
 
         def search(offset, limit):
-            return client.search(uri, q, offset, limit, filter).apply(
-                lambda objs: (objs, limit and len(objs) == limit)
-            )
+            return client.search(uri, q, offset, limit, filter)
         return iterate(search, translator.model, self.__upnp_search_limit)
 
     @property

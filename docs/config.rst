@@ -21,11 +21,6 @@ Configuration Values
    The maximum number of objects to retrieve per UPnP `Browse` action,
    or ``0`` to retrieve all objects.
 
-   .. note::
-
-      Due to a known bug in Mopidy-dLeyna, this should *not* be set
-      above 200 when using Kodi as a DLNA server.
-
 .. confval:: dleyna/upnp_lookup_limit
 
    The maximum number of objects to retrieve by ID in a single UPnP

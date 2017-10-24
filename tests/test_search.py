@@ -45,7 +45,10 @@ def test_search(backend, server, result):
     with mock.patch.object(backend, 'client') as m:
         m.servers.return_value = Future.fromvalue([server])
         m.server.return_value = Future.fromvalue(server)
-        m.search.return_value = Future.fromvalue(result)
+        m.search.side_effect = [
+            Future.fromvalue([result[0:2], True]),
+            Future.fromvalue([result[2:3], False])
+        ]
         # valid search
         assert backend.library.search({'any': ['foo']}) == models.SearchResult(
             albums=[

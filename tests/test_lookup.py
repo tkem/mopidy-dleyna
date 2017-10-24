@@ -50,7 +50,7 @@ def test_lookup_item(backend, items):
 def test_lookup_container(backend, container, items):
     with mock.patch.object(backend, 'client') as m:
         m.properties.return_value = Future.fromvalue(container)
-        m.search.return_value = Future.fromvalue(items)
+        m.search.return_value = Future.fromvalue([items, False])
         assert backend.library.lookup(container['URI']) == [
             models.Track(name='Track #1', uri='dleyna://media/11'),
             models.Track(name='Track #2', uri='dleyna://media/12')

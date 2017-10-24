@@ -152,10 +152,18 @@ class dLeynaClient(object):
             ','.join(self.__sortorder(uri, order)),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
-        if baseuri and (filter == ['*'] or 'URI' in filter):
-            return future.map(urimapper(baseuri))
-        else:
-            return future
+
+        def mapper(res):
+            if baseuri and (filter == ['*'] or 'URI' in filter):
+                objs = map(urimapper(baseuri), res)
+            else:
+                objs = res
+            # dleyna does not pass TotalMatches from Browse action;
+            # also note that a server may choose to return less than
+            # `limit` items, so assume `more` until nothing found
+            more = len(res) != 0
+            return objs, more
+        return future.apply(mapper)
 
     def properties(self, uri, iface=None):
         baseuri, objpath = self.__parseuri(uri)
@@ -183,10 +191,16 @@ class dLeynaClient(object):
             ','.join(self.__sortorder(uri, order)),
             dbus_interface=self.MEDIA_CONTAINER_IFACE
         )
-        if baseuri and (filter == ['*'] or 'URI' in filter):
-            return future.apply(lambda res: map(urimapper(baseuri), res[0]))
-        else:
-            return future.apply(lambda res: res[0])
+
+        def mapper(res):
+            items, total = res
+            if baseuri and (filter == ['*'] or 'URI' in filter):
+                objs = map(urimapper(baseuri), items)
+            else:
+                objs = items
+            more = offset + len(items) < total
+            return objs, more
+        return future.apply(mapper)
 
     def server(self, uri):
         # return future for consistency/future extensions
