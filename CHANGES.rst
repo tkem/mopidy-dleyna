@@ -1,10 +1,19 @@
+v1.2.1 (2017-10-24)
+-------------------
+
+- Add support for ``audioBook``, ``audioBroadcast`` and
+  ``playlistContainer`` classes.
+
+- Improve handling of browse and search limits.
+
+
 v1.2.0 (2016-09-23)
 -------------------
 
 - Add ``dbus_start_session`` configuration value for specifying the
   command to start a session bus.  The default is to invoke
-  ``dbus-daemon`` daemon directly, so ``dbus-launch`` is no longer
-  needed (but is still supported for now).
+  ``dbus-daemon`` directly, so ``dbus-launch`` is no longer needed
+  (but is still supported for now).
 
 - Check for ``$XDG_RUNTIME_DIR/bus`` before starting a session bus.
 

@@ -14,7 +14,7 @@ def get_version(filename):
 
 
 project = 'Mopidy-dLeyna'
-copyright = '2015, 2016 Thomas Kemmer'
+copyright = '2015-2017 Thomas Kemmer'
 version = get_version(b'../mopidy_dleyna/__init__.py')
 release = version
 
