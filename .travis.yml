@@ -12,10 +12,10 @@ env:
   - TOX_ENV=py27
 
 install:
-  - "pip install tox"
+  - pip install tox
 
 script:
-  - "tox -e $TOX_ENV"
+  - tox -e $TOX_ENV
 
 after_success:
-  - "if [ $TOX_ENV == 'py27' ]; then pip install coveralls; coveralls; fi"
+  - if [ $TOX_ENV == 'py27' ]; then pip install coveralls; coveralls; fi
