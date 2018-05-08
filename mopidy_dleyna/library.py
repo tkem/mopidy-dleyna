@@ -54,7 +54,16 @@ def iterate(func, translate, limit):
     count = 0
     future = func(count, limit)
     while future:
-        objs, more = future.get()
+        try:
+            objs, more = future.get()
+        except Exception:
+            # some media servers will raise a DBusException when
+            # iterating beyond the last item, which may happen with
+            # Browse due to dLeyna not passing TotalMatches...
+            if count:
+                break
+            else:
+                raise
         if more:
             objs = list(objs)
             count += len(objs)
