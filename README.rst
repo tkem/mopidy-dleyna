@@ -40,7 +40,7 @@ Project Resources
 License
 ------------------------------------------------------------------------
 
-Copyright (c) 2015-2017 Thomas Kemmer.
+Copyright (c) 2015-2018 Thomas Kemmer.
 
 Licensed under the `Apache License, Version 2.0`_.
 
