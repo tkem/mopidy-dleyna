@@ -1,3 +1,9 @@
+v1.2.2 (2018-05-08)
+-------------------
+
+- Add workaround for browsing errors with certain media servers.
+
+
 v1.2.1 (2017-10-24)
 -------------------
 
