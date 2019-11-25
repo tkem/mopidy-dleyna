@@ -57,7 +57,7 @@ def _artists(obj):
 
 
 def _quote(s):
-    return unicode(s).replace("\\", "\\\\").replace('"', '\\"')
+    return str(s).replace("\\", "\\\\").replace('"', '\\"')
 
 
 def ref(obj):
