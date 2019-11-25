@@ -85,7 +85,7 @@ class Servers(collections.Mapping):
 
     def __found_server(self, path):
         def error_handler(e):
-            logger.warn("Cannot access media server %s: %s", path, e)
+            logger.warning("Cannot access media server %s: %s", path, e)
 
         self.__bus.get_object(SERVER_BUS_NAME, path).GetAll(
             "",  # all interfaces

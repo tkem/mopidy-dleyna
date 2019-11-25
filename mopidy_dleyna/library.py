@@ -105,7 +105,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             try:
                 iterable = self.__images(baseuri, paths)
             except NotImplementedError as e:
-                logger.warn("Not retrieving images for %s: %s", baseuri, e)
+                logger.warning("Not retrieving images for %s: %s", baseuri, e)
             else:
                 results.append(iterable)
         # merge results
@@ -139,7 +139,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             try:
                 iterable = self.__search(uri, query, exact)
             except NotImplementedError as e:
-                logger.warn("Not searching %s: %s", uri, e)
+                logger.warning("Not searching %s: %s", uri, e)
             else:
                 results.append(iterable)
         if not results:
