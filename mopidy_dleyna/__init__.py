@@ -1,8 +1,10 @@
 import pathlib
 
+import pkg_resources
+
 from mopidy import config, exceptions, ext
 
-__version__ = "1.2.2"
+__version__ = pkg_resources.get_distribution("Mopidy-dLeyna").version
 
 
 class Extension(ext.Extension):
