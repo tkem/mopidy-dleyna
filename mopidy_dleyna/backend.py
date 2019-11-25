@@ -7,9 +7,9 @@ import signal
 import stat
 import subprocess
 
-from mopidy import backend, exceptions
-
 import pykka
+
+from mopidy import backend, exceptions
 
 from . import Extension
 from .client import dLeynaClient

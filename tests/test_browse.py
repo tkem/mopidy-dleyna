@@ -1,9 +1,7 @@
 import mock
-
-from mopidy.models import Ref
-
 import pytest
 
+from mopidy.models import Ref
 from mopidy_dleyna.util import Future
 
 

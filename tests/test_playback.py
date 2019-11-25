@@ -1,5 +1,4 @@
 import mock
-
 import pytest
 
 from mopidy_dleyna.util import Future

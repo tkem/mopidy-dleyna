@@ -1,7 +1,6 @@
-from mopidy.models import Album, Artist, Ref, Track
-
 import pytest
 
+from mopidy.models import Album, Artist, Ref, Track
 from mopidy_dleyna import translator
 
 BASEURI = "dleyna://foo"

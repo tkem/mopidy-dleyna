@@ -4,7 +4,6 @@ import threading
 import time
 
 import dbus
-
 import uritools
 
 from . import Extension, util
