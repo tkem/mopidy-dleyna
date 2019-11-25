@@ -1,6 +1,7 @@
 include *.py
 include *.rst
 include .mailmap
+include .readthedocs.yml
 include LICENSE
 include MANIFEST.in
 include pyproject.toml
