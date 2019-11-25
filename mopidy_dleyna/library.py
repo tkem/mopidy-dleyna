@@ -11,38 +11,30 @@ from . import Extension, translator
 
 logger = logging.getLogger(__name__)
 
-BROWSE_FILTER = [
-    'DisplayName',
-    'Type',
-    'TypeEx',
-    'URI'
-]
+BROWSE_FILTER = ["DisplayName", "Type", "TypeEx", "URI"]
 
-IMAGES_FILTER = [
-    'AlbumArtURL',
-    'URI'
-]
+IMAGES_FILTER = ["AlbumArtURL", "URI"]
 
 LOOKUP_FILTER = SEARCH_FILTER = [
-    'Album',
-    'AlbumArtURL',
-    'Artist',
-    'Artists',
-    'Bitrate',
-    'Date',
-    'DisplayName',
-    'Duration',
-    'Genre',
-    'TrackNumber',
-    'Type',
-    'TypeEx',
-    'URI'
+    "Album",
+    "AlbumArtURL",
+    "Artist",
+    "Artists",
+    "Bitrate",
+    "Date",
+    "DisplayName",
+    "Duration",
+    "Genre",
+    "TrackNumber",
+    "Type",
+    "TypeEx",
+    "URI",
 ]
 
 BROWSE_ORDER = {
-    models.Ref.ALBUM: ['+TrackNumber', '+DisplayName'],
-    models.Ref.ARTIST: ['+TypeEx', '+DisplayName'],
-    models.Ref.DIRECTORY: ['+TypeEx', '+DisplayName'],
+    models.Ref.ALBUM: ["+TrackNumber", "+DisplayName"],
+    models.Ref.ARTIST: ["+TypeEx", "+DisplayName"],
+    models.Ref.DIRECTORY: ["+TypeEx", "+DisplayName"],
 }
 
 LOOKUP_QUERY = 'Type = "music" or Type = "audio"'  # TODO: check SearchCaps
@@ -72,7 +64,7 @@ def iterate(func, translate, limit):
             try:
                 result = translate(obj)
             except ValueError as e:
-                logger.debug('Skipping %s: %s', obj.get('URI'), e)
+                logger.debug("Skipping %s: %s", obj.get("URI"), e)
             else:
                 yield result
 
@@ -81,19 +73,19 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
     root_directory = models.Ref.directory(
         uri=uritools.uricompose(Extension.ext_name),
-        name='Digital Media Servers'
+        name="Digital Media Servers",
     )
 
     def __init__(self, backend, config):
         super().__init__(backend)
         ext_config = config[Extension.ext_name]
-        self.__upnp_browse_limit = ext_config['upnp_browse_limit']
-        self.__upnp_lookup_limit = ext_config['upnp_lookup_limit']
-        self.__upnp_search_limit = ext_config['upnp_search_limit']
+        self.__upnp_browse_limit = ext_config["upnp_browse_limit"]
+        self.__upnp_lookup_limit = ext_config["upnp_lookup_limit"]
+        self.__upnp_search_limit = ext_config["upnp_search_limit"]
 
     def browse(self, uri):
         if uri == self.root_directory.uri:
-            refs = sorted(self.__servers, key=operator.attrgetter('name'))
+            refs = sorted(self.__servers, key=operator.attrgetter("name"))
         else:
             refs = self.__browse(uri)
         return list(refs)
@@ -105,7 +97,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         queries = collections.defaultdict(list)
         for uri in uris.difference([self.root_directory.uri]):
             parts = uritools.urisplit(uri)
-            baseuri = parts.scheme + '://' + parts.authority
+            baseuri = parts.scheme + "://" + parts.authority
             queries[baseuri].append(parts.path)
         # start searching - blocks only when iterating over results
         results = []
@@ -113,7 +105,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             try:
                 iterable = self.__images(baseuri, paths)
             except NotImplementedError as e:
-                logger.warn('Not retrieving images for %s: %s', baseuri, e)
+                logger.warn("Not retrieving images for %s: %s", baseuri, e)
             else:
                 results.append(iterable)
         # merge results
@@ -132,7 +124,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return list(tracks)
 
     def refresh(self, uri=None):
-        logger.info('Refreshing dLeyna library')
+        logger.info("Refreshing dLeyna library")
         self.backend.client.rescan().get()
 
     def search(self, query=None, uris=None, exact=False):
@@ -147,7 +139,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
             try:
                 iterable = self.__search(uri, query, exact)
             except NotImplementedError as e:
-                logger.warn('Not searching %s: %s', uri, e)
+                logger.warn("Not searching %s: %s", uri, e)
             else:
                 results.append(iterable)
         if not results:
@@ -159,7 +151,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         return models.SearchResult(
             albums=result[models.Album].values(),
             artists=result[models.Artist].values(),
-            tracks=result[models.Track].values()
+            tracks=result[models.Track].values(),
         )
 
     def __browse(self, uri, filter=BROWSE_FILTER):
@@ -169,24 +161,26 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
         def browse(offset, limit):
             return client.browse(uri, offset, limit, filter, order)
+
         return iterate(browse, translator.ref, self.__upnp_browse_limit)
 
     def __images(self, baseuri, paths, filter=IMAGES_FILTER):
         client = self.backend.client
         server = client.server(baseuri).get()
         # fall back on properties if path search is not available/enabled
-        if self.__upnp_lookup_limit == 1 or 'Path' not in server['SearchCaps']:
+        if self.__upnp_lookup_limit == 1 or "Path" not in server["SearchCaps"]:
             futures = [client.properties(baseuri + path) for path in paths]
             return (translator.images(f.get()) for f in futures)
         # use path search for retrieving multiple results at once
-        root = server['Path']
+        root = server["Path"]
 
         def images(offset, limit):
-            slice = paths[offset:offset + limit if limit else None]
-            query = ' or '.join(f'Path = "{root}{p}"' for p in slice)
+            slice = paths[offset : offset + limit if limit else None]
+            query = " or ".join(f'Path = "{root}{p}"' for p in slice)
             return client.search(baseuri, query, 0, 0, filter).apply(
                 lambda res: (res[0], limit and offset + limit < len(paths))
             )
+
         return iterate(images, translator.images, self.__upnp_lookup_limit)
 
     def __lookup(self, uri, filter=LOOKUP_FILTER):
@@ -201,17 +195,18 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     def __search(self, uri, query, exact, filter=SEARCH_FILTER):
         client = self.backend.client
         server = client.server(uri).get()
-        if server['SearchCaps']:
-            q = translator.query(query or {}, exact, server['SearchCaps'])
+        if server["SearchCaps"]:
+            q = translator.query(query or {}, exact, server["SearchCaps"])
         else:
-            raise NotImplementedError('Search is not supported by this device')
+            raise NotImplementedError("Search is not supported by this device")
 
         def search(offset, limit):
             return client.search(uri, q, offset, limit, filter)
+
         return iterate(search, translator.model, self.__upnp_search_limit)
 
     @property
     def __servers(self):
         for server in self.backend.client.servers().get():
-            name = server.get('FriendlyName', server['DisplayName'])
-            yield models.Ref.directory(name=name, uri=server['URI'])
+            name = server.get("FriendlyName", server["DisplayName"])
+            yield models.Ref.directory(name=name, uri=server["URI"])

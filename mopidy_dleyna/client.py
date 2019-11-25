@@ -9,50 +9,48 @@ import uritools
 
 from . import Extension, util
 
-SERVER_BUS_NAME = 'com.intel.dleyna-server'
+SERVER_BUS_NAME = "com.intel.dleyna-server"
 
-SERVER_ROOT_PATH = '/com/intel/dLeynaServer'
+SERVER_ROOT_PATH = "/com/intel/dLeynaServer"
 
-SERVER_MANAGER_IFACE = 'com.intel.dLeynaServer.Manager'
+SERVER_MANAGER_IFACE = "com.intel.dLeynaServer.Manager"
 
 logger = logging.getLogger(__name__)
 
 
 def urifilter(fields):
-    if 'URI' in fields:
+    if "URI" in fields:
         objfilter = fields[:]
-        objfilter.remove('URI')
-        objfilter.append('Path')
-        objfilter.append('RefPath')
+        objfilter.remove("URI")
+        objfilter.append("Path")
+        objfilter.append("RefPath")
         return objfilter
     else:
         return fields
 
 
-def urimapper(baseuri, prefix='/com/intel/dLeynaServer/server/'):
+def urimapper(baseuri, prefix="/com/intel/dLeynaServer/server/"):
     def mapper(obj, index=len(prefix)):
-        objpath = obj.get('RefPath', obj['Path'])
+        objpath = obj.get("RefPath", obj["Path"])
         assert objpath.startswith(prefix)
-        _, sep, relpath = objpath[index:].partition('/')
-        obj['URI'] = baseuri + sep + relpath
+        _, sep, relpath = objpath[index:].partition("/")
+        obj["URI"] = baseuri + sep + relpath
         return obj
+
     return mapper
 
 
 class Servers(collections.Mapping):
-
     def __init__(self, bus):
         self.__bus = bus
         self.__lock = threading.RLock()
         self.__servers = {}
 
         bus.add_signal_receiver(
-            self.__found_server, 'FoundServer',
-            bus_name=SERVER_BUS_NAME
+            self.__found_server, "FoundServer", bus_name=SERVER_BUS_NAME
         )
         bus.add_signal_receiver(
-            self.__lost_server, 'LostServer',
-            bus_name=SERVER_BUS_NAME
+            self.__lost_server, "LostServer", bus_name=SERVER_BUS_NAME
         )
         self.__get_servers()
 
@@ -70,38 +68,38 @@ class Servers(collections.Mapping):
             return len(self.__servers)
 
     def __add_server(self, obj):
-        udn = obj['UDN']
-        obj['URI'] = uritools.uricompose(Extension.ext_name, udn)
+        udn = obj["UDN"]
+        obj["URI"] = uritools.uricompose(Extension.ext_name, udn)
         key = udn.lower()
         if key not in self:
-            self.__log_server_action('Found', obj)
+            self.__log_server_action("Found", obj)
         with self.__lock:
             self.__servers[key] = obj
 
     def __remove_server(self, obj):
-        key = obj['UDN'].lower()
+        key = obj["UDN"].lower()
         with self.__lock:
             del self.__servers[key]
-        self.__log_server_action('Lost', obj)
+        self.__log_server_action("Lost", obj)
 
     def __found_server(self, path):
         def error_handler(e):
-            logger.warn('Cannot access media server %s: %s', path, e)
+            logger.warn("Cannot access media server %s: %s", path, e)
 
         self.__bus.get_object(SERVER_BUS_NAME, path).GetAll(
-            '',  # all interfaces
+            "",  # all interfaces
             dbus_interface=dbus.PROPERTIES_IFACE,
             reply_handler=self.__add_server,
-            error_handler=error_handler
+            error_handler=error_handler,
         )
 
     def __lost_server(self, path):
         with self.__lock:
             servers = list(self.__servers.values())
         for obj in servers:
-            if obj['Path'] == path:
+            if obj["Path"] == path:
                 return self.__remove_server(obj)
-        logger.info('Lost digital media server %s', path)
+        logger.info("Lost digital media server %s", path)
 
     def __get_servers(self):
         def reply_handler(paths):
@@ -109,31 +107,33 @@ class Servers(collections.Mapping):
                 self.__found_server(path)
 
         def error_handler(e):
-            logger.error('Cannot retrieve digital media servers: %s', e)
+            logger.error("Cannot retrieve digital media servers: %s", e)
 
         self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).GetServers(
             dbus_interface=SERVER_MANAGER_IFACE,
             reply_handler=reply_handler,
-            error_handler=error_handler
+            error_handler=error_handler,
         )
 
     @classmethod
     def __log_server_action(cls, action, obj):
         logger.info(
-            '%s digital media server %s [%s]',
-            action, obj['FriendlyName'], obj['UDN']
+            "%s digital media server %s [%s]",
+            action,
+            obj["FriendlyName"],
+            obj["UDN"],
         )
 
 
 class dLeynaClient:
 
-    MEDIA_CONTAINER_IFACE = 'org.gnome.UPnP.MediaContainer2'
+    MEDIA_CONTAINER_IFACE = "org.gnome.UPnP.MediaContainer2"
 
-    MEDIA_DEVICE_IFACE = 'com.intel.dLeynaServer.MediaDevice'
+    MEDIA_DEVICE_IFACE = "com.intel.dLeynaServer.MediaDevice"
 
-    MEDIA_ITEM_IFACE = 'org.gnome.UPnP.MediaItem2'
+    MEDIA_ITEM_IFACE = "org.gnome.UPnP.MediaItem2"
 
-    MEDIA_OBJECT_IFACE = 'org.gnome.UPnP.MediaObject2'
+    MEDIA_OBJECT_IFACE = "org.gnome.UPnP.MediaObject2"
 
     def __init__(self, address=None, mainloop=None):
         if address:
@@ -142,17 +142,19 @@ class dLeynaClient:
             self.__bus = dbus.SessionBus(mainloop=mainloop)
         self.__servers = Servers(self.__bus)
 
-    def browse(self, uri, offset=0, limit=0, filter=['*'], order=[]):
+    def browse(self, uri, offset=0, limit=0, filter=["*"], order=[]):
         baseuri, objpath = self.__parseuri(uri)
         future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildrenEx,
-            dbus.UInt32(offset), dbus.UInt32(limit), urifilter(filter),
-            ','.join(self.__sortorder(uri, order)),
-            dbus_interface=self.MEDIA_CONTAINER_IFACE
+            dbus.UInt32(offset),
+            dbus.UInt32(limit),
+            urifilter(filter),
+            ",".join(self.__sortorder(uri, order)),
+            dbus_interface=self.MEDIA_CONTAINER_IFACE,
         )
 
         def mapper(res):
-            if baseuri and (filter == ['*'] or 'URI' in filter):
+            if baseuri and (filter == ["*"] or "URI" in filter):
                 objs = map(urimapper(baseuri), res)
             else:
                 objs = res
@@ -161,14 +163,15 @@ class dLeynaClient:
             # `limit` items, so assume `more` until nothing found
             more = len(res) != 0
             return objs, more
+
         return future.apply(mapper)
 
     def properties(self, uri, iface=None):
         baseuri, objpath = self.__parseuri(uri)
         future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).GetAll,
-            iface or '',
-            dbus_interface=dbus.PROPERTIES_IFACE
+            iface or "",
+            dbus_interface=dbus.PROPERTIES_IFACE,
         )
         if baseuri and (not iface or iface == self.MEDIA_OBJECT_IFACE):
             return future.apply(urimapper(baseuri))
@@ -178,26 +181,30 @@ class dLeynaClient:
     def rescan(self):
         return util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, SERVER_ROOT_PATH).Rescan,
-            dbus_interface=SERVER_MANAGER_IFACE
+            dbus_interface=SERVER_MANAGER_IFACE,
         )
 
-    def search(self, uri, query, offset=0, limit=0, filter=['*'], order=[]):
+    def search(self, uri, query, offset=0, limit=0, filter=["*"], order=[]):
         baseuri, objpath = self.__parseuri(uri)
         future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjectsEx,
-            query, dbus.UInt32(offset), dbus.UInt32(limit), urifilter(filter),
-            ','.join(self.__sortorder(uri, order)),
-            dbus_interface=self.MEDIA_CONTAINER_IFACE
+            query,
+            dbus.UInt32(offset),
+            dbus.UInt32(limit),
+            urifilter(filter),
+            ",".join(self.__sortorder(uri, order)),
+            dbus_interface=self.MEDIA_CONTAINER_IFACE,
         )
 
         def mapper(res):
             items, total = res
-            if baseuri and (filter == ['*'] or 'URI' in filter):
+            if baseuri and (filter == ["*"] or "URI" in filter):
                 objs = map(urimapper(baseuri), items)
             else:
                 objs = items
             more = offset + len(items) < total
             return objs, more
+
         return future.apply(mapper)
 
     def server(self, uri):
@@ -214,16 +221,16 @@ class dLeynaClient:
         except ValueError:
             return None, uri
         else:
-            return server['URI'], server['Path'] + uritools.urisplit(uri).path
+            return server["URI"], server["Path"] + uritools.urisplit(uri).path
 
     def __sortorder(self, uri, order):
         try:
             server = self.__server(uri)
         except ValueError:
-            sortcaps = frozenset('*')
+            sortcaps = frozenset("*")
         else:
-            sortcaps = frozenset(server.get('SortCaps', []))
-        if '*' in sortcaps:
+            sortcaps = frozenset(server.get("SortCaps", []))
+        if "*" in sortcaps:
             return order
         else:
             return list(filter(lambda f: f[1:] in sortcaps, order))
@@ -231,16 +238,16 @@ class dLeynaClient:
     def __server(self, uri):
         udn = uritools.urisplit(uri).gethost()
         if not udn:
-            raise ValueError('Invalid URI %s' % uri)
+            raise ValueError("Invalid URI %s" % uri)
         try:
             server = self.__servers[udn]
         except KeyError:
-            raise LookupError('Unknown media server UDN %s' % udn)
+            raise LookupError("Unknown media server UDN %s" % udn)
         else:
             return server
 
 
-if __name__ == '__main__':  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     import argparse
     import json
     import sys
@@ -249,16 +256,16 @@ if __name__ == '__main__':  # pragma: no cover
     import gobject
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('uri', metavar='PATH | URI', nargs='?')
-    parser.add_argument('-b', '--browse', action='store_true')
-    parser.add_argument('-f', '--filter', default=['*'], nargs='*')
-    parser.add_argument('-i', '--iface')
-    parser.add_argument('-m', '--offset', default=0, type=int)
-    parser.add_argument('-n', '--limit', default=0, type=int)
-    parser.add_argument('-o', '--order', default=[], nargs='*')
-    parser.add_argument('-q', '--query')
-    parser.add_argument('-t', '--timeout', default=1.0, type=float)
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument("uri", metavar="PATH | URI", nargs="?")
+    parser.add_argument("-b", "--browse", action="store_true")
+    parser.add_argument("-f", "--filter", default=["*"], nargs="*")
+    parser.add_argument("-i", "--iface")
+    parser.add_argument("-m", "--offset", default=0, type=int)
+    parser.add_argument("-n", "--limit", default=0, type=int)
+    parser.add_argument("-o", "--order", default=[], nargs="*")
+    parser.add_argument("-q", "--query")
+    parser.add_argument("-t", "--timeout", default=1.0, type=float)
+    parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
@@ -279,10 +286,10 @@ if __name__ == '__main__':  # pragma: no cover
         gobject.MainLoop().get_context().iteration(False)
 
     kwargs = {
-        'offset': args.offset,
-        'limit': args.limit,
-        'filter': args.filter,
-        'order': args.order
+        "offset": args.offset,
+        "limit": args.limit,
+        "filter": args.filter,
+        "order": args.order,
     }
 
     if not args.uri:
@@ -303,4 +310,4 @@ if __name__ == '__main__':  # pragma: no cover
             break
 
     json.dump(future.get(), sys.stdout, default=vars, indent=2)
-    sys.stdout.write('\n')
+    sys.stdout.write("\n")
