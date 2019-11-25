@@ -170,7 +170,7 @@ class dLeynaClient:
             more = len(res) != 0
             return objs, more
 
-        return future.apply(mapper)
+        return future.map(mapper)
 
     def properties(self, uri, iface=None):
         baseuri, objpath = self.__parseuri(uri)
@@ -180,7 +180,7 @@ class dLeynaClient:
             dbus_interface=dbus.PROPERTIES_IFACE,
         )
         if baseuri and (not iface or iface == self.MEDIA_OBJECT_IFACE):
-            return future.apply(urimapper(baseuri))
+            return future.map(urimapper(baseuri))
         else:
             return future
 
@@ -216,7 +216,7 @@ class dLeynaClient:
             more = offset + len(items) < total
             return objs, more
 
-        return future.apply(mapper)
+        return future.map(mapper)
 
     def server(self, uri):
         # return future for consistency/future extensions

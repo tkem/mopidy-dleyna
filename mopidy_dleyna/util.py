@@ -10,12 +10,6 @@ class Future(pykka.ThreadingFuture):
 
     Timeout = pykka.Timeout
 
-    def apply(self, func):
-        # similar to map(), but always works on single value
-        future = self.__class__()
-        future.set_get_hook(lambda timeout: func(self.get(timeout)))
-        return future
-
     @classmethod
     def exception(cls, exc=None):
         future = cls()
