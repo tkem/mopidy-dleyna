@@ -30,7 +30,9 @@ def urifilter(fields):
 
 
 def urimapper(baseuri, prefix="/com/intel/dLeynaServer/server/"):
-    def mapper(obj, index=len(prefix)):
+    default_index = len(prefix)
+
+    def mapper(obj, index=default_index):
         objpath = obj.get("RefPath", obj["Path"])
         assert objpath.startswith(prefix)
         _, sep, relpath = objpath[index:].partition("/")
