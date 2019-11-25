@@ -17,9 +17,9 @@ class Future(pykka.ThreadingFuture):
         return future
 
     @classmethod
-    def exception(cls, exc_info=None):
+    def exception(cls, exc=None):
         future = cls()
-        future.set_exception(exc_info)
+        future.set_exception((type(exc), exc, None))
         return future
 
     @classmethod
