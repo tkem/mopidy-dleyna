@@ -144,7 +144,12 @@ class dLeynaClient:
             self.__bus = dbus.SessionBus(mainloop=mainloop)
         self.__servers = Servers(self.__bus)
 
-    def browse(self, uri, offset=0, limit=0, filter=["*"], order=[]):
+    def browse(self, uri, offset=0, limit=0, filter=None, order=None):
+        if filter is None:
+            filter = ["*"]
+        if order is None:
+            order = []
+
         baseuri, objpath = self.__parseuri(uri)
         future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).ListChildrenEx,
@@ -186,7 +191,12 @@ class dLeynaClient:
             dbus_interface=SERVER_MANAGER_IFACE,
         )
 
-    def search(self, uri, query, offset=0, limit=0, filter=["*"], order=[]):
+    def search(self, uri, query, offset=0, limit=0, filter=None, order=None):
+        if filter is None:
+            filter = ["*"]
+        if order is None:
+            order = []
+
         baseuri, objpath = self.__parseuri(uri)
         future = util.Future.fromdbus(
             self.__bus.get_object(SERVER_BUS_NAME, objpath).SearchObjectsEx,
