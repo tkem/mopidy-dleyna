@@ -1,5 +1,3 @@
-from __future__ import absolute_import, unicode_literals
-
 import errno
 import logging
 import os
@@ -33,7 +31,7 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
     __dbus_pid = None
 
     def __init__(self, config, audio):
-        super(dLeynaBackend, self).__init__()
+        super().__init__()
         try:
             if self.__have_session_bus():
                 self.client = dLeynaClient()
@@ -70,7 +68,7 @@ class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
         logger.debug('Running "%s" returned:\n%s', command, out)
         match = DBUS_SESSION_BUS_RE.search(out)
         if not match:
-            raise ValueError('%s returned invalid output: %s' % (command, out))
+            raise ValueError(f'{command} returned invalid output: {out}')
         else:
             return str(match.group(1)), int(match.group(2))
 

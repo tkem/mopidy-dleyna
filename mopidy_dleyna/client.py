@@ -1,5 +1,3 @@
-from __future__ import absolute_import, unicode_literals
-
 import collections
 import logging
 import threading
@@ -127,7 +125,7 @@ class Servers(collections.Mapping):
         )
 
 
-class dLeynaClient(object):
+class dLeynaClient:
 
     MEDIA_CONTAINER_IFACE = 'org.gnome.UPnP.MediaContainer2'
 

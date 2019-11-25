@@ -1,5 +1,3 @@
-from __future__ import absolute_import, unicode_literals
-
 import collections
 import itertools
 import logging
@@ -87,7 +85,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
     )
 
     def __init__(self, backend, config):
-        super(dLeynaLibraryProvider, self).__init__(backend)
+        super().__init__(backend)
         ext_config = config[Extension.ext_name]
         self.__upnp_browse_limit = ext_config['upnp_browse_limit']
         self.__upnp_lookup_limit = ext_config['upnp_lookup_limit']
@@ -185,7 +183,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
 
         def images(offset, limit):
             slice = paths[offset:offset + limit if limit else None]
-            query = ' or '.join('Path = "%s%s"' % (root, p) for p in slice)
+            query = ' or '.join(f'Path = "{root}{p}"' for p in slice)
             return client.search(baseuri, query, 0, 0, filter).apply(
                 lambda res: (res[0], limit and offset + limit < len(paths))
             )

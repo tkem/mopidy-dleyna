@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from mopidy.models import Album, Artist, Ref, Track
 
 import pytest
