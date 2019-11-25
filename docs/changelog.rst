@@ -1,4 +1,4 @@
 Change Log
 ========================================================================
 
-.. include:: ../CHANGES.rst
+.. include:: ../CHANGELOG.rst

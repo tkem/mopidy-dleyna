@@ -1,5 +1,22 @@
+*************
 Mopidy-dLeyna
-========================================================================
+*************
+
+.. image:: https://img.shields.io/pypi/v/Mopidy-dLeyna
+    :target: https://pypi.org/project/Mopidy-dLeyna/
+    :alt: Latest PyPI version
+
+.. image:: https://img.shields.io/circleci/build/gh/tkem/mopidy-dleyna
+    :target: https://circleci.com/gh/tkem/mopidy-dleyna
+    :alt: CircleCI build status
+
+.. image:: https://img.shields.io/codecov/c/gh/tkem/mopidy-dleyna
+    :target: https://codecov.io/gh/tkem/mopidy-dleyna
+    :alt: Test coverage
+
+.. image:: https://img.shields.io/readthedocs/mopidy-dleyna
+    :target: https://mopidy-dleyna.readthedocs.io/
+    :alt: Read the Docs build status
 
 Mopidy-dLeyna is a Mopidy_ extension that lets you play music from
 DLNA_ Digital Media Servers using the dLeyna_ D-Bus interface.
@@ -12,46 +29,23 @@ network, so there is no configuration needed.
 For more information and installation instructions, please see
 Mopidy-dLeyna's online documentation_.
 
-
-Project Resources
-------------------------------------------------------------------------
-
-.. image:: https://img.shields.io/pypi/v/Mopidy-dLeyna.svg?style=flat
-    :target: https://pypi.python.org/pypi/Mopidy-dLeyna/
-    :alt: Latest PyPI version
-
-.. image:: https://img.shields.io/travis/tkem/mopidy-dleyna/master.svg?style=flat
-    :target: https://travis-ci.org/tkem/mopidy-dleyna
-    :alt: Travis CI build status
-
-.. image:: https://img.shields.io/coveralls/tkem/mopidy-dleyna/master.svg?style=flat
-   :target: https://coveralls.io/r/tkem/mopidy-dleyna?branch=master
-   :alt: Test coverage
-
-.. image:: https://readthedocs.org/projects/mopidy-dleyna/badge/?version=latest&style=flat
-   :target: http://mopidy-dleyna.readthedocs.io/en/latest/
-   :alt: Documentation Status
-
-- `Issue Tracker`_
-- `Source Code`_
-- `Change Log`_
-
-
-License
-------------------------------------------------------------------------
-
-Copyright (c) 2015-2018 Thomas Kemmer.
-
-Licensed under the `Apache License, Version 2.0`_.
-
-
 .. _Mopidy: http://www.mopidy.com/
 .. _DLNA: http://www.dlna.org/
 .. _dLeyna: http://01.org/dleyna
+.. _Documentation: https://mopidy-dleyna.readthedocs.io/
 
-.. _Documentation: http://mopidy-dleyna.readthedocs.io/en/latest/
-.. _Issue Tracker: https://github.com/tkem/mopidy-dleyna/issues/
-.. _Source Code: https://github.com/tkem/mopidy-dleyna/
-.. _Change Log: https://github.com/tkem/mopidy-dleyna/blob/master/CHANGES.rst
 
-.. _Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+Project resources
+=================
+
+- `Source code <https://github.com/tkem/mopidy-dleyna>`_
+- `Issue tracker <https://github.com/tkem/mopidy-dleyna/issues>`_
+- `Changelog <https://github.com/tkem/mopidy-dleyna/blob/master/CHANGELOG.rst>`_
+
+
+Credits
+=======
+
+- Original author: `Thomas Kemmer <https://github.com/tkem>`__
+- Current maintainer: `Thomas Kemmer <https://github.com/tkem>`__
+- `Contributors <https://github.com/tkem/mopidy-dleyna/graphs/contributors>`_

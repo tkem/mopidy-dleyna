@@ -1,3 +1,7 @@
+import configparser
+import pathlib
+
+
 def setup(app):
     app.add_object_type(
         'confval', 'confval',
@@ -6,16 +10,17 @@ def setup(app):
     )
 
 
-def get_version(filename):
-    from re import findall
-    with open(filename) as f:
-        metadata = dict(findall(r"__([a-z]+)__ = '([^']+)'", f.read()))
-    return metadata['version']
+def get_version():
+    # Get current library version without requiring the library to be
+    # installed, like ``pkg_resources.get_distribution(...).version`` requires.
+    cp = configparser.ConfigParser()
+    cp.read(pathlib.Path(__file__).parent.parent / "setup.cfg")
+    return cp["metadata"]["version"]
 
 
 project = 'Mopidy-dLeyna'
-copyright = '2015-2018 Thomas Kemmer'
-version = get_version(b'../mopidy_dleyna/__init__.py')
+copyright = '2015-2019 Thomas Kemmer'
+version = get_version()
 release = version
 
 exclude_patterns = ['_build']
