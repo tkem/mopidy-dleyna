@@ -112,7 +112,7 @@ def model(obj):
 
 def images(obj):
     if "AlbumArtURL" in obj:
-        return obj["URI"], [models.Image(uri=obj["AlbumArtURL"])]
+        return obj["URI"], [models.Image(uri=str(obj["AlbumArtURL"]))]
     else:
         return obj["URI"], []
 
