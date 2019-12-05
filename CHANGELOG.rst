@@ -2,12 +2,15 @@
 Changelog
 *********
 
-v2.0.0a1 (UNRELEASED)
+v2.0.0a1 (2019-12-05)
 =====================
 
 - Require Python >= 3.7. (PR: #66)
+
 - Require Mopidy >= 3.0.0a5. (PR: #66)
+
 - Require Pykka >= 2.0.1. (PR: #66)
+
 - Update project setup. (PR: #66)
 
 
