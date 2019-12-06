@@ -1,5 +1,6 @@
+*************
 Configuration
-========================================================================
+*************
 
 This extension provides a number of configuration values that can be
 tweaked.  However, the :ref:`default configuration <defconf>` should
@@ -10,7 +11,7 @@ only a few modifications, if any, to match personal preferences.
 .. _confvals:
 
 Configuration Values
-------------------------------------------------------------------------
+====================
 
 .. confval:: dleyna/enabled
 
@@ -45,7 +46,7 @@ Configuration Values
 .. _defconf:
 
 Default Configuration
-------------------------------------------------------------------------
+=====================
 
 For reference, this is the default configuration shipped with
 Mopidy-dLeyna release |release|:

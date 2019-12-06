@@ -1,5 +1,6 @@
+*************
 Mopidy-dLeyna
-========================================================================
+*************
 
 Mopidy-dLeyna is a Mopidy_ extension that lets you play music from
 DLNA_ Digital Media Servers using the dLeyna_ D-Bus interface.
