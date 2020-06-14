@@ -71,6 +71,7 @@ class Servers(collections.Mapping):
     def __add_server(self, obj):
         udn = obj["UDN"]
         obj["URI"] = uritools.uricompose(Extension.ext_name, udn)
+        obj["DisplayName"] = obj.get("DisplayName", obj["URI"])
         key = udn.lower()
         if key not in self:
             self.__log_server_action("Found", obj)
