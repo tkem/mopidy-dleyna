@@ -1,4 +1,4 @@
-v2.0.1 (UNRELEASED)
+v2.0.1 (2020-07-06)
 ===================
 
 - Add ``DisplayName`` fallback for Plex media server.
