@@ -67,7 +67,9 @@ def ref(obj):
     except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
     else:
-        return translate(name=obj.get("DisplayName", obj["URI"]), uri=obj["URI"])
+        return translate(
+            name=obj.get("DisplayName", obj["URI"]), uri=obj["URI"]
+        )
 
 
 def album(obj):
