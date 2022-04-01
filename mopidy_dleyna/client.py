@@ -6,6 +6,8 @@ import time
 import dbus
 import uritools
 
+from collections.abc import Mapping
+
 from . import Extension, util
 
 SERVER_BUS_NAME = "com.intel.dleyna-server"
@@ -41,7 +43,7 @@ def urimapper(baseuri, prefix="/com/intel/dLeynaServer/server/"):
     return mapper
 
 
-class Servers(collections.Mapping):
+class Servers(Mapping):
     def __init__(self, bus):
         self.__bus = bus
         self.__lock = threading.RLock()
