@@ -6,9 +6,9 @@ Mopidy-dLeyna
     :target: https://pypi.org/project/Mopidy-dLeyna/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/circleci/build/gh/tkem/mopidy-dleyna
-    :target: https://circleci.com/gh/tkem/mopidy-dleyna
-    :alt: CircleCI build status
+.. image:: https://img.shields.io/github/workflow/status/tkem/mopidy-dleyna/CI
+    :target: https://github.com/tkem/mopidy-dleyna/actions
+    :alt: CI build status
 
 .. image:: https://img.shields.io/codecov/c/gh/tkem/mopidy-dleyna
     :target: https://codecov.io/gh/tkem/mopidy-dleyna
