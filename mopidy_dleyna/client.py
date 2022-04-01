@@ -1,4 +1,4 @@
-import collections
+from collections.abc import Mapping
 import logging
 import threading
 import time
@@ -41,7 +41,7 @@ def urimapper(baseuri, prefix="/com/intel/dLeynaServer/server/"):
     return mapper
 
 
-class Servers(collections.Mapping):
+class Servers(Mapping):
     def __init__(self, bus):
         self.__bus = bus
         self.__lock = threading.RLock()
