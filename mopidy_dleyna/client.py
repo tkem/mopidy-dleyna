@@ -1,12 +1,10 @@
-import collections
+from collections.abc import Mapping
 import logging
 import threading
 import time
 
 import dbus
 import uritools
-
-from collections.abc import Mapping
 
 from . import Extension, util
 
