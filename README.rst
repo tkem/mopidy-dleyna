@@ -10,13 +10,21 @@ Mopidy-dLeyna
     :target: https://github.com/tkem/mopidy-dleyna/actions
     :alt: CI build status
 
+.. image:: https://img.shields.io/readthedocs/mopidy-dleyna
+    :target: https://mopidy-dleyna.readthedocs.io/
+    :alt: Read the Docs build status
+
 .. image:: https://img.shields.io/codecov/c/gh/tkem/mopidy-dleyna
     :target: https://codecov.io/gh/tkem/mopidy-dleyna
     :alt: Test coverage
 
-.. image:: https://img.shields.io/readthedocs/mopidy-dleyna
-    :target: https://mopidy-dleyna.readthedocs.io/
-    :alt: Read the Docs build status
+.. image:: https://img.shields.io/github/license/tkem/mopidy-dleyna
+   :target: https://raw.github.com/tkem/mopidy-dleyna/master/LICENSE
+   :alt: License
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/psf/black
+   :alt: Code style: black
 
 Mopidy-dLeyna is a Mopidy_ extension that lets you play music from
 DLNA_ Digital Media Servers using the dLeyna_ D-Bus interface.
