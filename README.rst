@@ -6,13 +6,13 @@ Mopidy-dLeyna
     :target: https://pypi.org/project/Mopidy-dLeyna/
     :alt: Latest PyPI version
 
-.. image:: https://img.shields.io/github/workflow/status/tkem/mopidy-dleyna/CI
-    :target: https://github.com/tkem/mopidy-dleyna/actions
-    :alt: CI build status
+.. image:: https://img.shields.io/github/actions/workflow/status/tkem/mopidy-dleyna/ci.yml
+   :target: https://github.com/tkem/mopidy-dleyna/actions/workflows/ci.yml
+   :alt: CI build status
 
 .. image:: https://img.shields.io/readthedocs/mopidy-dleyna
     :target: https://mopidy-dleyna.readthedocs.io/
-    :alt: Read the Docs build status
+    :alt: Documentation build status
 
 .. image:: https://img.shields.io/codecov/c/gh/tkem/mopidy-dleyna
     :target: https://codecov.io/gh/tkem/mopidy-dleyna
