@@ -3,6 +3,8 @@ v2.1.0 (UNRELEASED)
 
 - Add support for Python <= 3.14.
 
+- Fix UPNP bitrate encoding.
+
 - Modernize build environment and packages structure.
 
 - Update CI environment.

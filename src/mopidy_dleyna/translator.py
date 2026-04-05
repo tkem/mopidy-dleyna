@@ -88,7 +88,8 @@ def track(obj):
         track_no=obj.get("TrackNumber"),
         date=obj.get("Date"),
         length=obj.get("Duration", 0) * 1000 or None,
-        bitrate=obj.get("Bitrate", 0) * 8 or None,
+        # DLNA bitrate is given in byte/s, but Mopidy wants kbit/s
+        bitrate=int((obj.get("Bitrate", 0) * 8) / 1000) or None,
     )
 
 
