@@ -1,4 +1,4 @@
-v2.1.0 (UNRELEASED)
+v2.1.0 (2026-04-05)
 ===================
 
 - Add support for Python <= 3.14.
