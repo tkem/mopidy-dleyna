@@ -1,9 +1,10 @@
 from unittest import mock
 
-import pytest
-
 from mopidy import models
+
 from mopidy_dleyna.util import Future
+
+import pytest
 
 
 @pytest.fixture

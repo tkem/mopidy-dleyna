@@ -3,9 +3,9 @@ import itertools
 import logging
 import operator
 
-import uritools
-
 from mopidy import backend, models
+
+import uritools
 
 from . import Extension, translator
 

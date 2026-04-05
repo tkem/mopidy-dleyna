@@ -1,8 +1,8 @@
 from unittest import mock
 
-import pytest
-
 from mopidy_dleyna.util import Future
+
+import pytest
 
 
 @pytest.fixture

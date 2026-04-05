@@ -3,8 +3,7 @@ from mopidy import models
 _QUERY = {
     "any": lambda caps: (
         " or ".join(
-            s + ' {0} "{1}"'
-            for s in caps & {"DisplayName", "Album", "Artist", "Genre"}
+            s + ' {0} "{1}"' for s in caps & {"DisplayName", "Album", "Artist", "Genre"}
         )
     ),
     "album": lambda caps: ('Album {0} "{1}"' if "Album" in caps else None),
@@ -14,18 +13,14 @@ _QUERY = {
         else None
     ),
     "artist": lambda caps: ('Artist {0} "{1}"' if "Artist" in caps else None),
-    "date": lambda caps: (
-        'Date = "{1}"' if "Date" in caps else None  # TODO: inexact?
-    ),
+    "date": lambda caps: ('Date = "{1}"' if "Date" in caps else None),  # TODO: inexact?
     "genre": lambda caps: ('Genre {0} "{1}"' if "Genre" in caps else None),
     "track_name": lambda caps: (
         'DisplayName {0} "{1}" and Type = "music"'
         if "DisplayName" in caps and "Type" in caps
         else None
     ),
-    "track_no": lambda caps: (
-        'TrackNumber = "{1}"' if "TrackNumber" in caps else None
-    ),
+    "track_no": lambda caps: ('TrackNumber = "{1}"' if "TrackNumber" in caps else None),
 }
 
 _REFS = {
@@ -67,9 +62,7 @@ def ref(obj):
     except KeyError:
         raise ValueError('Object type "%s" not supported' % type)
     else:
-        return translate(
-            name=obj.get("DisplayName", obj["URI"]), uri=obj["URI"]
-        )
+        return translate(name=obj.get("DisplayName", obj["URI"]), uri=obj["URI"])
 
 
 def album(obj):

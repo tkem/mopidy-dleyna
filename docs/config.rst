@@ -51,5 +51,5 @@ Default Configuration
 For reference, this is the default configuration shipped with
 Mopidy-dLeyna release |release|:
 
-.. literalinclude:: ../mopidy_dleyna/ext.conf
+.. literalinclude:: ../src/mopidy_dleyna/ext.conf
    :language: ini

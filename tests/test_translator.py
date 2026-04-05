@@ -1,7 +1,8 @@
-import pytest
-
 from mopidy.models import Album, Artist, Ref, Track
+
 from mopidy_dleyna import translator
+
+import pytest
 
 BASEURI = "dleyna://foo"
 BASEPATH = "/com/intel/dLeynaServer/server/0"
@@ -71,9 +72,7 @@ def test_container_ref():
 
 def test_video_ref():
     with pytest.raises(ValueError):
-        translator.ref(
-            {"DisplayName": "Foo", "URI": BASEURI + "/foo", "Type": "video"}
-        )
+        translator.ref({"DisplayName": "Foo", "URI": BASEURI + "/foo", "Type": "video"})
 
 
 def test_album():
