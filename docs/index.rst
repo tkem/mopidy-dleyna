@@ -27,16 +27,16 @@ only a few modifications, if any, to match personal preferences.
 Configuration Values
 ====================
 
-.. confval:: dleyna/enabled
+.. confval:: enabled
 
    Whether this extension should be enabled or not.
 
-.. confval:: dleyna/upnp_browse_limit
+.. confval:: upnp_browse_limit
 
    The maximum number of objects to retrieve per UPnP `Browse` action,
    or ``0`` to retrieve all objects.
 
-.. confval:: dleyna/upnp_lookup_limit
+.. confval:: upnp_lookup_limit
 
    The maximum number of objects to retrieve by ID in a single UPnP
    `Search` action, or ``0`` for no limit.  Note that for this setting
@@ -46,12 +46,12 @@ Configuration Values
    This is an *experimental* setting and may be changed or removed in
    future versions.
 
-.. confval:: dleyna/upnp_search_limit
+.. confval:: upnp_search_limit
 
    The maximum number of objects to retrieve per UPnP `Search` action,
    or ``0`` to retrieve all objects.
 
-.. confval:: dleyna/dbus_start_session
+.. confval:: dbus_start_session
 
    The command to start a D-Bus session bus if none is found, for
    example when running Mopidy as a service.
