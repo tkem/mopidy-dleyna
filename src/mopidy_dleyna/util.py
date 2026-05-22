@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class Future(pykka.ThreadingFuture):
-
     Timeout = pykka.Timeout
 
     @classmethod

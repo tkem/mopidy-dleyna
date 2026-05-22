@@ -129,7 +129,6 @@ class Servers(Mapping):
 
 
 class dLeynaClient:
-
     MEDIA_CONTAINER_IFACE = "org.gnome.UPnP.MediaContainer2"
 
     MEDIA_DEVICE_IFACE = "com.intel.dLeynaServer.MediaDevice"

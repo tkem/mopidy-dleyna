@@ -6,7 +6,6 @@ __version__ = "2.1.1"
 
 
 class Extension(ext.Extension):
-
     dist_name = "Mopidy-dLeyna"
     ext_name = "dleyna"
     version = __version__

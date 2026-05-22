@@ -70,7 +70,6 @@ def iterate(func, translate, limit):
 
 
 class dLeynaLibraryProvider(backend.LibraryProvider):
-
     root_directory = models.Ref.directory(
         uri=uritools.uricompose(Extension.ext_name),
         name="Digital Media Servers",

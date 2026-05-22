@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 
 class dLeynaBackend(pykka.ThreadingActor, backend.Backend):
-
     uri_schemes = [Extension.ext_name]
 
     __dbus_pid = None
