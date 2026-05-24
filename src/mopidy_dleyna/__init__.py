@@ -2,7 +2,7 @@ import pathlib
 
 from mopidy import config, exceptions, ext
 
-__version__ = "2.1.1"
+__version__ = "3.0.0"
 
 
 class Extension(ext.Extension):

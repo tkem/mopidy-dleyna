@@ -1,3 +1,13 @@
+v3.0.0 (2026-05-25)
+===================
+
+- Require Mopidy >= 4.0.0.
+
+- Potentially improve search performance.
+
+- Update build environment.
+
+
 v2.1.1 (2026-04-10)
 ===================
 
