@@ -1,5 +1,4 @@
 import collections
-import itertools
 import logging
 import operator
 
@@ -82,11 +81,15 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         self.__upnp_search_limit = ext_config["upnp_search_limit"]
 
     def browse(self, uri):
-        if uri == self.root_directory.uri:
-            refs = sorted(self.__servers, key=operator.attrgetter("name"))
-        else:
-            refs = self.__browse(uri)
-        return list(refs)
+        try:
+            if uri == self.root_directory.uri:
+                refs = sorted(self.__servers, key=operator.attrgetter("name"))
+            else:
+                refs = self.__browse(uri)
+            return list(refs)
+        except Exception as e:
+            logger.error("Error browsing %s: %s", uri, e)
+            return []
 
     def get_images(self, uris):
         # TODO: suggest as API improvement
@@ -104,22 +107,30 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                 iterable = self.__images(baseuri, paths)
             except NotImplementedError as e:
                 logger.warning("Not retrieving images for %s: %s", baseuri, e)
+            except Exception as e:
+                logger.error("Error retrieving images for %s: %s", baseuri, e)
             else:
-                results.append(iterable)
+                results.append((baseuri, iterable))
         # merge results
         result = {}
-        for uri, images in itertools.chain.from_iterable(results):
-            result[uri] = tuple(images)
+        for baseuri, iterable in results:
+            try:
+                for uri, images in iterable:
+                    result[uri] = tuple(images)
+            except Exception as e:
+                logger.error("Error retrieving images for %s: %s", baseuri, e)
         if self.root_directory.uri in uris:
             result[self.root_directory.uri] = ()
         return result
 
     def lookup(self, uri):
         if uri == self.root_directory.uri:
-            tracks = []
-        else:
-            tracks = self.__lookup(uri)
-        return list(tracks)
+            return []
+        try:
+            return list(self.__lookup(uri))
+        except Exception as e:
+            logger.error("Error looking up %s: %s", uri, e)
+            return []
 
     def refresh(self, uri=None):
         logger.info("Refreshing dLeyna library")
@@ -129,7 +140,11 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         # sanitize uris - remove duplicates, replace root with server uris
         uris = set(uris or [self.root_directory.uri])
         if self.root_directory.uri in uris:
-            uris.update(ref.uri for ref in self.__servers)
+            try:
+                uris.update(ref.uri for ref in self.__servers)
+            except Exception as e:
+                logger.error("Error retrieving media servers: %s", e)
+                return None
             uris.remove(self.root_directory.uri)
         # start searching - blocks only when iterating over results
         results = []
@@ -138,14 +153,20 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
                 iterable = self.__search(uri, query, exact)
             except NotImplementedError as e:
                 logger.warning("Not searching %s: %s", uri, e)
+            except Exception as e:
+                logger.error("Error searching %s: %s", uri, e)
             else:
-                results.append(iterable)
+                results.append((uri, iterable))
         if not results:
             return None
-        # retrieve and merge search results - TODO: handle exceptions?
+        # retrieve and merge search results
         result = collections.defaultdict(collections.OrderedDict)
-        for model in itertools.chain.from_iterable(results):
-            result[type(model)][model.uri] = model
+        for uri, iterable in results:
+            try:
+                for model in iterable:
+                    result[type(model)][model.uri] = model
+            except Exception as e:
+                logger.error("Error searching %s: %s", uri, e)
         return models.SearchResult(
             albums=result[models.Album].values(),
             artists=result[models.Artist].values(),
