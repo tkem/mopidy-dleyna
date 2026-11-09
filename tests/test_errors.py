@@ -81,3 +81,43 @@ def test_search_servers_error(backend, e):
     with mock.patch.object(backend, "client") as m:
         m.servers = error(e)
         assert backend.library.search({"any": ["foo"]}) is None
+
+
+GOOD = dict(SERVER, URI="dleyna://good", FriendlyName="Good")
+BAD = dict(SERVER, URI="dleyna://bad", FriendlyName="Bad")
+
+
+def by_server(results):
+    # dispatch client calls on their first argument, the server or object URI
+    def call(uri, *args, **kwargs):
+        result = results[uri.split("/")[2]]
+        if isinstance(result, Exception):
+            return Future.exception(result)
+        return Future.fromvalue(result)
+
+    return mock.Mock(side_effect=call)
+
+
+@pytest.mark.parametrize("e", ERRORS)
+@pytest.mark.parametrize("fail", ["server", "search"])
+def test_get_images_mixed_servers(backend, e, fail):
+    item = {"Type": "music", "AlbumArtURL": "http://x/1.jpg", "URI": "dleyna://good/1"}
+    with mock.patch.object(backend, "client") as m:
+        m.server = by_server({"good": GOOD, "bad": e if fail == "server" else BAD})
+        m.search = by_server({"good": [[item], False], "bad": e})
+        assert backend.library.get_images(["dleyna://good/1", "dleyna://bad/1"]) == {
+            "dleyna://good/1": (models.Image(uri="http://x/1.jpg"),)
+        }
+
+
+@pytest.mark.parametrize("e", ERRORS)
+@pytest.mark.parametrize("fail", ["server", "search"])
+def test_search_mixed_servers(backend, e, fail):
+    track = {"DisplayName": "Track", "Type": "music", "URI": "dleyna://good/1"}
+    with mock.patch.object(backend, "client") as m:
+        m.servers.return_value = Future.fromvalue([GOOD, BAD])
+        m.server = by_server({"good": GOOD, "bad": e if fail == "server" else BAD})
+        m.search = by_server({"good": [[track], False], "bad": e})
+        assert backend.library.search({"any": ["foo"]}) == models.SearchResult(
+            tracks=[models.Track(name="Track", uri="dleyna://good/1")]
+        )
