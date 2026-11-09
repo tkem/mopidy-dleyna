@@ -29,12 +29,6 @@ commit had not finished when this review was written. `tox -e pyright` fails wit
 | 2 | Low | `iterate()` ending a listing on an error after the first page (line 52) is untested; `tests/test_errors.py` covers errors on the first page only. |
 | 3 | Info | Two `DeprecationWarning`s come from `mopidy.types` at import time, not from this package. |
 
-## Docs (`docs/index.rst`)
-
-| # | Priority | Finding |
-|---|----------|---------|
-| 1 | Info | `README.rst` still shows a "code style: black" badge, although formatting is done with `ruff format`. |
-
 ## Changelog
 
 | # | Priority | Finding |
