@@ -35,8 +35,10 @@ review process.
 
 ## Maintainer Decisions (do not re-raise)
 
-- D-Bus errors from media servers are caught broadly (`BLE001` is ignored): servers
-  that fail when paging beyond the last item end a listing instead of failing it.
+- Errors from the dLeyna client are caught broadly (`BLE001` is ignored): the
+  library provider logs them and returns empty results instead of raising, keeps
+  the results of other media servers, and ends a listing when a server fails while
+  paging beyond the last item.
 - `dbus-python` is not a declared dependency, since it is installed with the system
   D-Bus libraries; `validate_environment()` reports it missing.
 - Known limitations, such as dLeyna not passing `TotalMatches` from Browse or date

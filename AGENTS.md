@@ -37,8 +37,10 @@ Coverage is reported to Codecov and is not complete; see `.github/copilot-review
   `standard` mode where it is cheap to do so.
 - Private state uses double-underscore names (`self.__servers`); all D-Bus calls go
   through `dLeynaClient`, which returns `util.Future` objects, never raw replies.
-- Log with `logger.error("... %s", arg)`, never f-strings; skip and log objects of
-  unsupported types (`ValueError` from the translator) instead of failing a listing.
+- Log with `logger.error("... %s", arg)`, never f-strings, and never raise from
+  `browse()`, `lookup()`, `get_images()`, `search()` or `translate_uri()`: Mopidy
+  clients expect an empty result. Skip and log objects of unsupported types
+  (`ValueError` from the translator) instead of failing a listing.
 - Docs (`docs/index.rst`): wrap prose at column 70, two spaces after a sentence,
   `confval` entries for every setting in `ext.conf`. Keep `README.rst` in sync.
 
