@@ -3,9 +3,8 @@ import itertools
 import logging
 import operator
 
-from mopidy import backend, models
-
 import uritools
+from mopidy import backend, models
 
 from . import Extension, translator
 
@@ -112,7 +111,7 @@ class dLeynaLibraryProvider(backend.LibraryProvider):
         for uri, images in itertools.chain.from_iterable(results):
             result[uri] = tuple(images)
         if self.root_directory.uri in uris:
-            result[self.root_directory.uri] = tuple()
+            result[self.root_directory.uri] = ()
         return result
 
     def lookup(self, uri):

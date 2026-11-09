@@ -4,7 +4,6 @@ import time
 from collections.abc import Mapping
 
 import dbus
-
 import uritools
 
 from . import Extension, util
@@ -280,7 +279,7 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING)
 
     client = dLeynaClient(mainloop=dbus.mainloop.glib.DBusGMainLoop())
 

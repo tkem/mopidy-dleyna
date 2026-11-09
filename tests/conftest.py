@@ -28,6 +28,7 @@ def client():
 @pytest.fixture
 def backend(config, audio, client):
     from mopidy import backend
+
     from mopidy_dleyna import library, playback
 
     backend_mock = mock.Mock(spec=backend.Backend)

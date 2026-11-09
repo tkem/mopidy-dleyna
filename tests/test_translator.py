@@ -1,8 +1,7 @@
+import pytest
 from mopidy.models import Album, Artist, Ref, Track
 
 from mopidy_dleyna import translator
-
-import pytest
 
 BASEURI = "dleyna://foo"
 BASEPATH = "/com/intel/dLeynaServer/server/0"
