@@ -1,10 +1,9 @@
 from unittest import mock
 
+import pytest
 from mopidy import models
 
 from mopidy_dleyna.util import Future
-
-import pytest
 
 
 @pytest.fixture
@@ -38,5 +37,5 @@ def test_images(backend, server, items):
         m.search.return_value = Future.fromvalue([items, False])
         assert backend.library.get_images(item["URI"] for item in items) == {
             items[0]["URI"]: (models.Image(uri=items[0]["AlbumArtURL"]),),
-            items[1]["URI"]: tuple(),
+            items[1]["URI"]: (),
         }
